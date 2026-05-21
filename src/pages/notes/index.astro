@@ -31,9 +31,9 @@ const formatDate = (d: Date) => {
     <ol class="note-list">
       {notes.map((entry) => (
         <li class="note-row">
-          <a href={`/notes/${entry.id}/`} class="note-link link-underline">
+          <a href={`/notes/${entry.id}/`} class="note-link">
             <span class="note-date">{formatDate(entry.data.date)}</span>
-            <span class="note-title">{entry.data.title}</span>
+            <span class="note-title link-underline">{entry.data.title}</span>
           </a>
         </li>
       ))}
@@ -43,7 +43,7 @@ const formatDate = (d: Date) => {
 
 <style>
   .notes-header {
-    margin-bottom: 40px;
+    margin-bottom: 32px;
   }
 
   .page-label {
@@ -97,23 +97,29 @@ const formatDate = (d: Date) => {
     letter-spacing: 0.02em;
   }
 
+  /* The underline is scoped to .note-title (a span with .link-underline) so it
+     ends where the title text ends, not where the row ends. We mirror :hover
+     state from the outer anchor onto the inner span so hovering anywhere on
+     the row still triggers the underline. */
   .note-title {
     font-size: 18px;
+    display: inline-block;
   }
 
-  /* Override the default link-underline (which puts the line under the entire flex)
-     so the L->R underline only appears under the title, not the date. */
-  .note-link::after {
-    left: 116px; /* 96px date col + 20px gap */
+  .note-link:hover .link-underline,
+  .note-link:focus-visible .link-underline {
+    color: var(--accent);
+  }
+
+  .note-link:hover .link-underline::after,
+  .note-link:focus-visible .link-underline::after {
+    width: 100%;
   }
 
   @media (max-width: 720px) {
     .note-link {
       grid-template-columns: 84px 1fr;
       gap: 14px;
-    }
-    .note-link::after {
-      left: 98px;
     }
   }
 </style>

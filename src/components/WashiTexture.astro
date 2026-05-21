@@ -1,8 +1,17 @@
 ---
-// WashiTexture — subtle paper-fiber noise overlay using SVG feTurbulence.
-// Lives absolutely-positioned inside .paper so it doesn't bleed onto the linen.
-// Opacity 0.04 desktop, 0.03 retina (high-DPI override in global.css).
-// pointer-events: none so it never intercepts clicks/hover.
+/**
+ * WashiTexture — paper-fiber noise overlay using SVG feTurbulence,
+ * plus 2-3 very faint horizontal crease lines that read like a
+ * folded sheet.
+ *
+ * v1.1 tuning:
+ *   - opacity 0.04 → 0.07 (paper presence visible without dominating)
+ *   - baseFrequency 0.85 → 0.65 (larger noise clumps = paper grain, not static)
+ *   - numOctaves 2 → 3 (more layered detail)
+ *   - retina opacity raised to 0.05 in global.css high-DPI override
+ *
+ * pointer-events: none so it never intercepts clicks/hover.
+ */
 ---
 
 <svg
@@ -10,24 +19,37 @@
   aria-hidden="true"
   focusable="false"
   preserveAspectRatio="none"
+  viewBox="0 0 700 1200"
   xmlns="http://www.w3.org/2000/svg"
 >
-  <filter id="washi-noise">
-    <feTurbulence
-      type="fractalNoise"
-      baseFrequency="0.85"
-      numOctaves="2"
-      stitchTiles="stitch"
-    />
-    <feColorMatrix
-      type="matrix"
-      values="0 0 0 0 0
-              0 0 0 0 0
-              0 0 0 0 0
-              0 0 0 0.85 0"
-    />
-  </filter>
+  <defs>
+    <filter id="washi-noise">
+      <feTurbulence
+        type="fractalNoise"
+        baseFrequency="0.65"
+        numOctaves="3"
+        stitchTiles="stitch"
+      />
+      <feColorMatrix
+        type="matrix"
+        values="0 0 0 0 0
+                0 0 0 0 0
+                0 0 0 0 0
+                0 0 0 0.85 0"
+      />
+    </filter>
+  </defs>
+
+  <!-- Paper grain — covers entire surface. -->
   <rect width="100%" height="100%" filter="url(#washi-noise)" />
+
+  <!-- Faint creases — read as fold lines on a sheet that's been opened.
+       Stroke width well under 1px so they barely register; opacity tiny. -->
+  <g stroke="#7A0E20" fill="none" stroke-linecap="round">
+    <path d="M 0,260 Q 350,256 700,262" stroke-width="0.5" opacity="0.07" />
+    <path d="M 0,560 Q 350,565 700,558" stroke-width="0.4" opacity="0.05" />
+    <path d="M 0,880 Q 350,878 700,884" stroke-width="0.4" opacity="0.06" />
+  </g>
 </svg>
 
 <style>
@@ -37,9 +59,8 @@
     width: 100%;
     height: 100%;
     pointer-events: none;
-    opacity: 0.04;
+    opacity: 0.07;
     z-index: 0;
-    /* keep it sharp at the edges of the paper */
     border-radius: inherit;
   }
 </style>

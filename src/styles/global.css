@@ -10,8 +10,8 @@
   --bg-outer: #c9b998;       /* linen "desk" */
   --bg-paper: #f5eddd;       /* warm cream */
 
-  /* text */
-  --text-body: #2c2c2c;
+  /* text — body deepened from #2C2C2C to #1C1C1C for v1.1 readability pass */
+  --text-body: #1c1c1c;
   --text-muted: #9a9a98;
 
   /* accent — used SPARINGLY: name, section labels, hover/focus, signature */
@@ -31,7 +31,7 @@
 @theme {
   --color-outer: #c9b998;
   --color-paper: #f5eddd;
-  --color-body: #2c2c2c;
+  --color-body: #1c1c1c;
   --color-muted: #9a9a98;
   --color-accent: #7a0e20;
   --color-border-subtle: #d5d5d3;
@@ -42,15 +42,17 @@
 }
 
 /* ============================================================
-   Base typography
+   Base typography — v1.1 readability pass:
+   weight 400 → 500, color #2C2C2C → #1C1C1C, 18px → 17px,
+   line-height 1.7 → 1.65. Reads as "written" rather than typeset.
    ============================================================ */
 html {
-  /* Set on html so the linen color shows underneath any margin collapse. */
   background-color: var(--bg-outer);
   color: var(--text-body);
   font-family: var(--font-serif);
-  font-size: 18px;
-  line-height: 1.7;
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 1.65;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
@@ -81,13 +83,14 @@ a {
 
 /* ============================================================
    Layered shell — paper on linen.
+   v1.1: paper padding 80→56 desktop for tighter viewport fit.
    ============================================================ */
 .paper {
   position: relative;
   max-width: 700px;
-  margin: 40px auto;
-  padding: 80px 60px;
-  min-height: calc(100vh - 80px);
+  margin: 32px auto;
+  padding: 56px 60px;
+  min-height: calc(100vh - 64px);
   background-color: var(--bg-paper);
   border-radius: 2px;
   box-shadow: var(--paper-shadow);
@@ -105,6 +108,7 @@ a {
 
 /* ============================================================
    Section labels — italic lowercase burgundy.
+   v1.1: tighter top margin for viewport fit.
    ============================================================ */
 .section-label {
   font-family: var(--font-serif);
@@ -112,8 +116,8 @@ a {
   font-weight: 500;
   font-size: 18px;
   color: var(--accent);
-  margin-top: 40px;
-  margin-bottom: 12px;
+  margin-top: 28px;
+  margin-bottom: 8px;
   letter-spacing: 0.01em;
 }
 
@@ -123,7 +127,7 @@ a {
    ============================================================ */
 .link-underline {
   position: relative;
-  color: var(--text-body);
+  color: inherit;
   transition: color var(--transition-base);
 }
 
@@ -177,7 +181,7 @@ a {
 @media (max-width: 720px) {
   .paper {
     margin: 16px auto;
-    padding: 48px 24px;
+    padding: 40px 24px;
     box-shadow: var(--paper-shadow-mobile);
     min-height: calc(100vh - 32px);
   }
@@ -190,10 +194,11 @@ a {
   }
 }
 
-/* High-DPI: drop washi opacity slightly so the noise doesn't look harsh. */
+/* High-DPI: drop washi opacity slightly so the noise doesn't look harsh.
+   v1.1: raised baseline, so retina cap is correspondingly higher. */
 @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
   .washi {
-    opacity: 0.03 !important;
+    opacity: 0.05 !important;
   }
 }
 

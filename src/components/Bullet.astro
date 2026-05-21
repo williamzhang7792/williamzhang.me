@@ -1,12 +1,12 @@
 ---
-import type { Bullet as BulletType } from "~/data/about";
+import type { Bullet as BulletType, TextPart } from "~/data/about";
 import * as LucideIcons from "@lucide/astro";
 
 export interface Props extends BulletType {}
 
-const { icon, text, href } = Astro.props;
+const { icon, parts } = Astro.props;
 
-// Special case: "shuttlecock" -> custom SVG; everything else -> Lucide.
+// Special case: "shuttlecock" -> custom inline SVG; everything else -> Lucide.
 // The string magic is documented in the Bullet type definition in about.ts.
 const isCustomIcon = icon === "shuttlecock";
 const LucideIcon = isCustomIcon
@@ -16,6 +16,9 @@ const LucideIcon = isCustomIcon
 if (!isCustomIcon && !LucideIcon && import.meta.env.DEV) {
   console.warn(`[Bullet] Unknown Lucide icon "${icon}". Falling back to no icon.`);
 }
+
+const isLinkPart = (p: TextPart): p is { label: string; href: string } =>
+  typeof p === "object" && p !== null && "href" in p;
 ---
 
 <li class="bullet">
@@ -49,11 +52,20 @@ if (!isCustomIcon && !LucideIcon && import.meta.env.DEV) {
     <span class="bullet-icon" aria-hidden="true"></span>
   )}
 
-  {href ? (
-    <a href={href} class="bullet-text link-underline">{text}</a>
-  ) : (
-    <span class="bullet-text bullet-text--static">{text}</span>
-  )}
+  <span class="bullet-text">
+    {parts.map((part) =>
+      isLinkPart(part) ? (
+        <a
+          href={part.href}
+          class="bullet-link link-underline"
+          rel={part.href.startsWith("http") ? "noopener noreferrer" : undefined}
+          target={part.href.startsWith("http") ? "_blank" : undefined}
+        >{part.label}</a>
+      ) : (
+        <span class="bullet-plain">{part}</span>
+      ),
+    )}
+  </span>
 </li>
 
 <style>
@@ -61,7 +73,7 @@ if (!isCustomIcon && !LucideIcon && import.meta.env.DEV) {
     display: flex;
     align-items: baseline;
     gap: 8px;
-    padding: 4px 0;
+    padding: 3px 0;
     font-size: 17px;
     line-height: 1.55;
   }
@@ -77,7 +89,6 @@ if (!isCustomIcon && !LucideIcon && import.meta.env.DEV) {
     flex-shrink: 0;
     width: 16px;
     height: 16px;
-    /* Visually align line-art icons with serif body baseline. */
     transform: translateY(2px);
     align-self: center;
   }
@@ -86,7 +97,17 @@ if (!isCustomIcon && !LucideIcon && import.meta.env.DEV) {
     stroke-width: 1.5;
   }
 
-  .bullet-text--static {
+  .bullet-text {
     color: var(--text-body);
+  }
+
+  .bullet-plain {
+    /* explicit class so the schema reads symmetrically; no extra styles needed. */
+  }
+
+  /* Linkable label: weight bump signals "this is interactive" before hover.
+     The L→R underline + color shift come from .link-underline in global.css. */
+  .bullet-link {
+    font-weight: 600;
   }
 </style>

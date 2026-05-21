@@ -11,9 +11,6 @@ const title = `${about.name}`;
   <header class="about-header">
     <h1 class="name">{about.name}</h1>
     <p class="location">{about.location}</p>
-    <p class="lately">
-      <span class="lately-label">lately:</span> {about.lately}
-    </p>
   </header>
 
   <p class="positioning">{about.positioning}</p>
@@ -37,42 +34,30 @@ const title = `${about.name}`;
 
 <style>
   .about-header {
-    margin-bottom: 28px;
+    margin-bottom: 16px;
   }
 
   .name {
     font-family: var(--font-serif);
     font-weight: 500;
-    font-size: 36px;
+    font-size: 30px;
     color: var(--accent);
-    margin: 0 0 4px 0;
+    margin: 0 0 2px 0;
     letter-spacing: -0.005em;
+    line-height: 1.15;
   }
 
   .location {
     font-style: italic;
     color: var(--text-muted);
-    margin: 0 0 6px 0;
-    font-size: 16px;
-  }
-
-  .lately {
-    font-style: italic;
-    color: var(--text-muted);
-    font-size: 15px;
     margin: 0;
-    line-height: 1.5;
-  }
-
-  .lately-label {
-    color: var(--accent);
-    font-weight: 500;
+    font-size: 15px;
   }
 
   .positioning {
-    margin: 24px 0 0 0;
-    font-size: 18px;
-    line-height: 1.7;
+    margin: 16px 0 0 0;
+    font-size: 17px;
+    line-height: 1.65;
   }
 
   .bullets {
