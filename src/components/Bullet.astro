@@ -1,0 +1,92 @@
+---
+import type { Bullet as BulletType } from "~/data/about";
+import * as LucideIcons from "@lucide/astro";
+
+export interface Props extends BulletType {}
+
+const { icon, text, href } = Astro.props;
+
+// Special case: "shuttlecock" -> custom SVG; everything else -> Lucide.
+// The string magic is documented in the Bullet type definition in about.ts.
+const isCustomIcon = icon === "shuttlecock";
+const LucideIcon = isCustomIcon
+  ? null
+  : ((LucideIcons as unknown as Record<string, any>)[icon] ?? null);
+
+if (!isCustomIcon && !LucideIcon && import.meta.env.DEV) {
+  console.warn(`[Bullet] Unknown Lucide icon "${icon}". Falling back to no icon.`);
+}
+---
+
+<li class="bullet">
+  <span class="arrow" aria-hidden="true">↳</span>
+
+  {isCustomIcon ? (
+    <svg
+      class="bullet-icon"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.5"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+      width="16"
+      height="16"
+    >
+      <ellipse cx="12" cy="18.5" rx="2.4" ry="1.6" />
+      <line x1="9.6" y1="18.5" x2="14.4" y2="18.5" />
+      <line x1="10" y1="17.6" x2="6.5" y2="4" />
+      <line x1="11" y1="17.4" x2="9.75" y2="3.25" />
+      <line x1="13" y1="17.4" x2="14.25" y2="3.25" />
+      <line x1="14" y1="17.6" x2="17.5" y2="4" />
+      <line x1="12" y1="17.3" x2="12" y2="3" />
+      <path d="M6.5 4 Q 12 2.4 17.5 4" />
+    </svg>
+  ) : LucideIcon ? (
+    <LucideIcon size={16} class="bullet-icon" aria-hidden="true" />
+  ) : (
+    <span class="bullet-icon" aria-hidden="true"></span>
+  )}
+
+  {href ? (
+    <a href={href} class="bullet-text link-underline">{text}</a>
+  ) : (
+    <span class="bullet-text bullet-text--static">{text}</span>
+  )}
+</li>
+
+<style>
+  .bullet {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 4px 0;
+    font-size: 17px;
+    line-height: 1.55;
+  }
+
+  .arrow {
+    color: var(--text-muted);
+    flex-shrink: 0;
+    user-select: none;
+  }
+
+  .bullet-icon {
+    color: var(--text-muted);
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    /* Visually align line-art icons with serif body baseline. */
+    transform: translateY(2px);
+    align-self: center;
+  }
+
+  .bullet-icon :global(svg) {
+    stroke-width: 1.5;
+  }
+
+  .bullet-text--static {
+    color: var(--text-body);
+  }
+</style>

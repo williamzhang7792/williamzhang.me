@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <!-- cream paper background -->
+  <rect width="1200" height="630" fill="#F5EDDD"/>
+
+  <!-- subtle washi noise hint via low-frequency feTurbulence -->
+  <defs>
+    <filter id="paperNoise" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" stitchTiles="stitch"/>
+      <feColorMatrix values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.06 0"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="630" filter="url(#paperNoise)"/>
+
+  <!-- name -->
+  <text
+    x="600"
+    y="320"
+    font-family="'Cormorant Garamond', Georgia, serif"
+    font-size="120"
+    font-weight="500"
+    text-anchor="middle"
+    fill="#7A0E20"
+    letter-spacing="-1"
+  >William Zhang</text>
+
+  <!-- subtitle -->
+  <text
+    x="600"
+    y="380"
+    font-family="'Cormorant Garamond', Georgia, serif"
+    font-style="italic"
+    font-size="32"
+    font-weight="400"
+    text-anchor="middle"
+    fill="#646564"
+  >stats &amp; computing  ·  waterloo</text>
+
+  <!-- tiny hairline divider -->
+  <line x1="540" y1="430" x2="660" y2="430" stroke="#7A0E20" stroke-width="1"/>
+
+  <!-- bottom marker -->
+  <text
+    x="600"
+    y="475"
+    font-family="'IBM Plex Mono', monospace"
+    font-size="18"
+    text-anchor="middle"
+    fill="#9A9A98"
+    letter-spacing="2"
+  >williamzhang.me</text>
+</svg>

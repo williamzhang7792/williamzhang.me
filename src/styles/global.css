@@ -1,0 +1,209 @@
+@import "tailwindcss";
+
+/* ============================================================
+   Design tokens — single source of truth.
+   Mirrored in @theme below for Tailwind utilities.
+   See DESIGN.md for the full rationale and "do not add" list.
+   ============================================================ */
+:root {
+  /* surfaces */
+  --bg-outer: #c9b998;       /* linen "desk" */
+  --bg-paper: #f5eddd;       /* warm cream */
+
+  /* text */
+  --text-body: #2c2c2c;
+  --text-muted: #9a9a98;
+
+  /* accent — used SPARINGLY: name, section labels, hover/focus, signature */
+  --accent: #7a0e20;
+
+  /* structure */
+  --border-subtle: #d5d5d3;
+  --paper-shadow: 0 2px 24px rgba(0, 0, 0, 0.06);
+  --paper-shadow-mobile: 0 1px 12px rgba(0, 0, 0, 0.05);
+
+  /* motion */
+  --transition-base: 200ms ease;
+  --transition-underline: 250ms ease;
+}
+
+/* Tailwind v4 token mirror so utilities like text-accent / bg-paper work. */
+@theme {
+  --color-outer: #c9b998;
+  --color-paper: #f5eddd;
+  --color-body: #2c2c2c;
+  --color-muted: #9a9a98;
+  --color-accent: #7a0e20;
+  --color-border-subtle: #d5d5d3;
+
+  --font-serif: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --font-script: "Caveat", "Cormorant Garamond", cursive;
+}
+
+/* ============================================================
+   Base typography
+   ============================================================ */
+html {
+  /* Set on html so the linen color shows underneath any margin collapse. */
+  background-color: var(--bg-outer);
+  color: var(--text-body);
+  font-family: var(--font-serif);
+  font-size: 18px;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  background-color: var(--bg-outer);
+  margin: 0;
+  min-height: 100vh;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  margin: 0;
+  line-height: 1.2;
+  color: var(--text-body);
+}
+
+p {
+  margin: 0 0 1em 0;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* ============================================================
+   Layered shell — paper on linen.
+   ============================================================ */
+.paper {
+  position: relative;
+  max-width: 700px;
+  margin: 40px auto;
+  padding: 80px 60px;
+  min-height: calc(100vh - 80px);
+  background-color: var(--bg-paper);
+  border-radius: 2px;
+  box-shadow: var(--paper-shadow);
+  /* The only cursor effect — see §3 of plan. */
+  cursor: crosshair;
+  /* So the washi texture absolute-positions inside this stacking context. */
+  isolation: isolate;
+}
+
+/* The body of the paper — all real content lives here, above the washi overlay. */
+.paper > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ============================================================
+   Section labels — italic lowercase burgundy.
+   ============================================================ */
+.section-label {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 18px;
+  color: var(--accent);
+  margin-top: 40px;
+  margin-bottom: 12px;
+  letter-spacing: 0.01em;
+}
+
+/* ============================================================
+   Shared link primitive — L→R underline grow.
+   Applied to: bullet links, nav, footer socials, note titles.
+   ============================================================ */
+.link-underline {
+  position: relative;
+  color: var(--text-body);
+  transition: color var(--transition-base);
+}
+
+.link-underline::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -2px;
+  width: 0;
+  height: 1px;
+  background-color: var(--accent);
+  transition: width var(--transition-underline);
+}
+
+.link-underline:hover,
+.link-underline:focus-visible {
+  color: var(--accent);
+  outline: none;
+}
+
+.link-underline:hover::after,
+.link-underline:focus-visible::after {
+  width: 100%;
+}
+
+/* ============================================================
+   Skip link — keyboard users can jump straight to content.
+   ============================================================ */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 8px;
+  background: var(--bg-paper);
+  color: var(--accent);
+  padding: 6px 12px;
+  border: 1px solid var(--accent);
+  border-radius: 2px;
+  font-size: 14px;
+  z-index: 200;
+  transition: top var(--transition-base);
+}
+
+.skip-link:focus {
+  top: 8px;
+  outline: none;
+}
+
+/* ============================================================
+   Mobile — single breakpoint at 720px (per §3).
+   ============================================================ */
+@media (max-width: 720px) {
+  .paper {
+    margin: 16px auto;
+    padding: 48px 24px;
+    box-shadow: var(--paper-shadow-mobile);
+    min-height: calc(100vh - 32px);
+  }
+}
+
+/* Touch / no-hover devices: drop the crosshair (it looks broken on tap). */
+@media (hover: none) {
+  .paper {
+    cursor: default;
+  }
+}
+
+/* High-DPI: drop washi opacity slightly so the noise doesn't look harsh. */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .washi {
+    opacity: 0.03 !important;
+  }
+}
+
+/* Respect reduced motion for the underline animation and any future motion. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0ms !important;
+    animation-duration: 0ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

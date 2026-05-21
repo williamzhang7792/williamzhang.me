@@ -1,0 +1,119 @@
+---
+import BaseLayout from "~/layouts/BaseLayout.astro";
+import { getCollection } from "astro:content";
+
+const all = await getCollection("notes");
+const isProd = import.meta.env.PROD;
+const notes = all
+  .filter((entry) => !isProd || !entry.data.draft)
+  .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+
+const formatDate = (d: Date) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}.${m}.${day}`;
+};
+---
+
+<BaseLayout
+  title="notes — William Zhang"
+  description="Half-formed thoughts on actuarial work, AI risk, and modern technology. By William Zhang."
+>
+  <header class="notes-header">
+    <h1 class="page-label">notes</h1>
+    <p class="subtitle">half-formed thoughts. updated whenever there's something worth writing down.</p>
+  </header>
+
+  {notes.length === 0 ? (
+    <p class="empty">first piece coming soon.</p>
+  ) : (
+    <ol class="note-list">
+      {notes.map((entry) => (
+        <li class="note-row">
+          <a href={`/notes/${entry.id}/`} class="note-link link-underline">
+            <span class="note-date">{formatDate(entry.data.date)}</span>
+            <span class="note-title">{entry.data.title}</span>
+          </a>
+        </li>
+      ))}
+    </ol>
+  )}
+</BaseLayout>
+
+<style>
+  .notes-header {
+    margin-bottom: 40px;
+  }
+
+  .page-label {
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-weight: 500;
+    font-size: 28px;
+    color: var(--accent);
+    margin: 0 0 8px 0;
+  }
+
+  .subtitle {
+    font-style: italic;
+    color: var(--text-muted);
+    font-size: 15px;
+    margin: 0;
+  }
+
+  .empty {
+    font-style: italic;
+    color: var(--text-muted);
+  }
+
+  .note-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .note-row {
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .note-row:last-child {
+    border-bottom: none;
+  }
+
+  .note-link {
+    display: grid;
+    grid-template-columns: 96px 1fr;
+    align-items: baseline;
+    gap: 20px;
+    padding: 14px 0;
+    color: var(--text-body);
+  }
+
+  .note-date {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text-muted);
+    letter-spacing: 0.02em;
+  }
+
+  .note-title {
+    font-size: 18px;
+  }
+
+  /* Override the default link-underline (which puts the line under the entire flex)
+     so the L->R underline only appears under the title, not the date. */
+  .note-link::after {
+    left: 116px; /* 96px date col + 20px gap */
+  }
+
+  @media (max-width: 720px) {
+    .note-link {
+      grid-template-columns: 84px 1fr;
+      gap: 14px;
+    }
+    .note-link::after {
+      left: 98px;
+    }
+  }
+</style>

@@ -1,0 +1,451 @@
+---
+/**
+ * BadmintonGame — small canvas mini-game anchored from the badminton bullet.
+ *
+ * §9 mechanics: spacebar/click hits when shuttle is on player's side and in
+ * hit zone. CPU returns with 200-500ms delay and 15% baseline miss rate.
+ *
+ * §9b craft pass:
+ *   - hand-drawn-ink aesthetic (jittered court line, marginalia "w" + dot)
+ *   - Caveat typography for all in-game text
+ *   - washi noise inside the canvas to continue the paper
+ *   - shuttle rotates as it flies (real shuttles wobble)
+ *
+ * Lazy-mounted: canvas is collapsed by default. Hidden on touch devices —
+ * static fallback line shown instead.
+ *
+ * ROLLBACK: if the game looks amateur, delete this component, set
+ * about.ts > thinking[3].href to null, keep the bullet text and shuttlecock
+ * icon. The personality moment survives without the game.
+ */
+---
+
+<section id="badminton" class="badminton-section" aria-label="Badminton mini-game">
+  <button
+    type="button"
+    class="bm-trigger link-underline"
+    aria-expanded="false"
+    aria-controls="bm-canvas-wrap"
+    id="bm-trigger"
+  >
+    play a quick rally
+  </button>
+
+  <p class="bm-touch-fallback" aria-hidden="true">
+    badminton plays better on a desktop — open this on a real keyboard sometime
+  </p>
+
+  <div id="bm-canvas-wrap" class="bm-canvas-wrap" hidden>
+    <canvas id="bm-canvas" width="400" height="300" aria-label="Badminton rally game"></canvas>
+    <p class="bm-help">
+      <span class="bm-help-key">space</span> or click to hit. <span class="bm-help-meta">no rules. just rally.</span>
+    </p>
+  </div>
+</section>
+
+<style>
+  .badminton-section {
+    margin: 56px 0 0 0;
+  }
+
+  .bm-trigger {
+    background: none;
+    border: none;
+    font-family: var(--font-script);
+    font-size: 22px;
+    font-weight: 500;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    font-style: italic;
+    /* The L->R underline primitive needs position: relative; .link-underline already provides it. */
+  }
+
+  .bm-trigger:hover,
+  .bm-trigger:focus-visible {
+    color: var(--accent);
+    outline: none;
+  }
+
+  .bm-touch-fallback {
+    display: none;
+    margin: 8px 0 0 0;
+    font-style: italic;
+    font-size: 15px;
+    color: var(--text-muted);
+  }
+
+  .bm-canvas-wrap {
+    margin-top: 18px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  #bm-canvas {
+    background-color: var(--bg-paper);
+    border: 1px solid var(--border-subtle);
+    border-radius: 2px;
+    max-width: 100%;
+    height: auto;
+    /* Outline for keyboard focus */
+    outline: none;
+    cursor: crosshair;
+  }
+
+  #bm-canvas:focus-visible {
+    border-color: var(--accent);
+  }
+
+  .bm-help {
+    margin: 0;
+    font-family: var(--font-script);
+    font-size: 17px;
+    color: var(--text-muted);
+    font-style: italic;
+  }
+
+  .bm-help-key {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
+    color: var(--accent);
+    padding: 1px 6px;
+    border-radius: 2px;
+    font-style: normal;
+  }
+
+  .bm-help-meta {
+    color: var(--text-muted);
+  }
+
+  /* Touch: hide the trigger and game, show the fallback line. */
+  @media (hover: none) {
+    .bm-trigger,
+    .bm-canvas-wrap {
+      display: none !important;
+    }
+    .bm-touch-fallback {
+      display: block;
+    }
+  }
+
+  @media (max-width: 720px) {
+    #bm-canvas {
+      width: 100%;
+      max-width: 360px;
+    }
+  }
+</style>
+
+<script>
+  import { safeStorage } from "~/lib/safeStorage";
+
+  type Shuttle = { x: number; y: number; vx: number; vy: number; rot: number };
+
+  const trigger = document.getElementById("bm-trigger");
+  const wrap = document.getElementById("bm-canvas-wrap");
+  const canvas = document.getElementById("bm-canvas") as HTMLCanvasElement | null;
+  if (!trigger || !wrap || !canvas) {
+    /* component not on this page */
+  } else {
+    const ctx = canvas.getContext("2d")!;
+    const W = canvas.width;
+    const H = canvas.height;
+    const NET_X = W / 2;
+    const COURT_Y = H - 30;          // floor line where shuttles land
+    const HIT_ZONE_TOP = COURT_Y - 60;
+
+    // --- state ---
+    let shuttle: Shuttle = { x: 60, y: 40, vx: 2.4, vy: 0.6, rot: 0 };
+    let rally = 0;
+    let bestRally = parseInt(safeStorage.get("wz-best-rally") ?? "0", 10) || 0;
+    let lastHitter: "player" | "cpu" | null = null;
+    let cpuHitTimer = 0;        // remaining frames until CPU swing
+    let cpuHitScheduled = false;
+    let flash: { text: string; x: number; y: number; rot: number; t: number } | null = null;
+    let running = false;
+    let lastTime = 0;
+
+    // Caveat font may not be loaded at first paint; let it warm up once.
+    document.fonts?.ready?.catch(() => {});
+
+    const winPool = [
+      "ok actually",
+      "the badminton hours are paying off",
+      "nice",
+      "you flexed",
+      "ok flex",
+    ];
+    const losePool = [
+      "ah",
+      "ugh",
+      "should've been studying",
+      "...",
+      "warmup",
+      "next time",
+    ];
+
+    // --- helpers ---
+    const rand = (a: number, b: number) => a + Math.random() * (b - a);
+    const pick = <T,>(arr: T[]) => arr[Math.floor(Math.random() * arr.length)];
+
+    function resetShuttle(side: "player" | "cpu") {
+      shuttle.x = side === "player" ? rand(40, 120) : rand(W - 120, W - 40);
+      shuttle.y = 30;
+      shuttle.vx = side === "player" ? rand(1.4, 2.6) : rand(-2.6, -1.4);
+      shuttle.vy = 0.4;
+      shuttle.rot = 0;
+      cpuHitScheduled = false;
+      cpuHitTimer = 0;
+      lastHitter = null;
+    }
+
+    function endRally(reason: "player-miss" | "cpu-miss") {
+      const text = reason === "player-miss" ? pick(losePool) : pick(winPool);
+      flash = {
+        text,
+        x: shuttle.x,
+        y: Math.min(shuttle.y, COURT_Y - 10),
+        rot: rand(-0.07, 0.07),
+        t: 1,
+      };
+      if (rally > bestRally) {
+        bestRally = rally;
+        safeStorage.set("wz-best-rally", String(bestRally));
+      }
+      rally = 0;
+      window.setTimeout(() => resetShuttle(reason === "player-miss" ? "cpu" : "player"), 1500);
+    }
+
+    function playerHit() {
+      if (shuttle.x < NET_X && shuttle.y > HIT_ZONE_TOP - 10 && shuttle.y < COURT_Y) {
+        shuttle.vx = rand(2.0, 3.4);
+        shuttle.vy = rand(-3.4, -2.4);
+        rally++;
+        lastHitter = "player";
+      }
+    }
+
+    function tick(dt: number) {
+      // physics
+      shuttle.vy += 0.08 * dt;       // gravity
+      shuttle.vx *= 0.998;            // tiny drag
+      shuttle.x += shuttle.vx * dt;
+      shuttle.y += shuttle.vy * dt;
+      shuttle.rot = shuttle.vx * 0.04;
+
+      // CPU schedules a hit when shuttle crosses to its side
+      if (shuttle.x >= NET_X && lastHitter !== "cpu" && !cpuHitScheduled) {
+        cpuHitScheduled = true;
+        cpuHitTimer = Math.floor(rand(12, 30)); // ~200-500ms at 60fps
+      }
+
+      if (cpuHitScheduled) {
+        cpuHitTimer -= dt;
+        if (cpuHitTimer <= 0) {
+          cpuHitScheduled = false;
+          // CPU miss probability climbs slowly with rally length, capped.
+          const missProb = Math.min(0.4, 0.15 + rally * 0.005);
+          const inZone = shuttle.x > NET_X && shuttle.y > HIT_ZONE_TOP - 10 && shuttle.y < COURT_Y;
+          if (inZone && Math.random() > missProb) {
+            shuttle.vx = rand(-3.4, -2.0);
+            shuttle.vy = rand(-3.4, -2.4);
+            rally++;
+            lastHitter = "cpu";
+          }
+          // else: CPU misses; shuttle keeps falling and ends the rally below.
+        }
+      }
+
+      // floor — end rally
+      if (shuttle.y >= COURT_Y) {
+        if (shuttle.x < NET_X) endRally("player-miss");
+        else endRally("cpu-miss");
+        // Pause physics until reset by stowing shuttle off-screen briefly
+        shuttle.y = COURT_Y;
+        shuttle.vx = 0;
+        shuttle.vy = 0;
+      }
+
+      // walls
+      if (shuttle.x < 0) { shuttle.x = 0; shuttle.vx = Math.abs(shuttle.vx) * 0.6; }
+      if (shuttle.x > W) { shuttle.x = W; shuttle.vx = -Math.abs(shuttle.vx) * 0.6; }
+      if (shuttle.y < 0) { shuttle.y = 0; shuttle.vy = Math.abs(shuttle.vy) * 0.6; }
+
+      if (flash) {
+        flash.t -= 0.013 * dt;
+        if (flash.t <= 0) flash = null;
+      }
+    }
+
+    // --- drawing ---
+    function drawWashi() {
+      // Cheap noise overlay inside the canvas — match outer paper feel.
+      // Sparse to avoid perf hit; just enough to break flatness.
+      ctx.save();
+      ctx.globalAlpha = 0.025;
+      for (let i = 0; i < 80; i++) {
+        ctx.fillStyle = "#000";
+        ctx.fillRect(Math.random() * W, Math.random() * H, 1, 1);
+      }
+      ctx.restore();
+    }
+
+    function drawCourtLine() {
+      // Hand-drawn jitter — same y target with small random offsets.
+      ctx.save();
+      ctx.strokeStyle = "#7A0E20";
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      const y = COURT_Y;
+      ctx.moveTo(8, y + (Math.random() - 0.5) * 0.6);
+      for (let x = 16; x <= W - 8; x += 8) {
+        ctx.lineTo(x, y + (Math.random() - 0.5) * 0.8);
+      }
+      ctx.stroke();
+
+      // Net — a few short vertical pen-strokes at the center.
+      ctx.lineWidth = 1.1;
+      for (let i = 0; i < 5; i++) {
+        const nx = NET_X + (Math.random() - 0.5) * 1.6;
+        const top = y - 70 - i * 1.2;
+        const bot = y - 4 - i * 1.2;
+        ctx.beginPath();
+        ctx.moveTo(nx, top);
+        ctx.lineTo(nx + (Math.random() - 0.5) * 1.4, bot);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function drawPlayerAndCPU() {
+      ctx.save();
+      // Player as lowercase "w" in Caveat
+      ctx.fillStyle = "#7A0E20";
+      ctx.font = "italic 22px Caveat, cursive";
+      ctx.textBaseline = "middle";
+      ctx.fillText("w", 24, COURT_Y - 14);
+
+      // CPU as a single ink dot
+      ctx.beginPath();
+      ctx.arc(W - 26, COURT_Y - 10, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawShuttle() {
+      ctx.save();
+      ctx.translate(shuttle.x, shuttle.y);
+      ctx.rotate(shuttle.rot);
+      // small shuttle glyph: feathers + cork
+      ctx.strokeStyle = "#2C2C2C";
+      ctx.lineWidth = 1.2;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      // feathers
+      ctx.beginPath();
+      for (let i = -2; i <= 2; i++) {
+        ctx.moveTo(0, 4);
+        ctx.lineTo(i * 2.4, -7);
+      }
+      ctx.stroke();
+      // cork (filled tiny ellipse)
+      ctx.fillStyle = "#7A0E20";
+      ctx.beginPath();
+      ctx.ellipse(0, 5, 2.6, 1.6, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawCounters() {
+      ctx.save();
+      ctx.fillStyle = "#7A0E20";
+      ctx.font = "500 italic 19px Caveat, cursive";
+      ctx.textBaseline = "top";
+      ctx.fillText(`rally: ${rally}`, 14, 12);
+
+      ctx.fillStyle = "#9A9A98";
+      ctx.font = "500 italic 14px Caveat, cursive";
+      ctx.textAlign = "right";
+      ctx.fillText(`longest: ${bestRally}`, W - 14, 14);
+      ctx.textAlign = "left";
+      ctx.restore();
+    }
+
+    function drawFlash() {
+      if (!flash) return;
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, Math.min(1, flash.t));
+      ctx.translate(flash.x, flash.y - 14);
+      ctx.rotate(flash.rot);
+      ctx.fillStyle = "#7A0E20";
+      ctx.font = "italic 22px Caveat, cursive";
+      ctx.textAlign = "center";
+      ctx.fillText(flash.text, 0, 0);
+      ctx.textAlign = "left";
+      ctx.restore();
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, W, H);
+      drawWashi();
+      drawCourtLine();
+      drawPlayerAndCPU();
+      drawShuttle();
+      drawCounters();
+      drawFlash();
+    }
+
+    function loop(t: number) {
+      if (!running) return;
+      const dt = lastTime ? Math.min(2, (t - lastTime) / 16.67) : 1;
+      lastTime = t;
+      tick(dt);
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    // --- input ---
+    function onSpace(e: KeyboardEvent) {
+      if (!running) return;
+      if (e.code === "Space" || e.key === " ") {
+        e.preventDefault();
+        playerHit();
+      }
+    }
+    function onClick() {
+      if (!running) return;
+      playerHit();
+    }
+
+    // --- toggle ---
+    trigger.addEventListener("click", () => {
+      const open = wrap.hasAttribute("hidden") === false;
+      if (open) {
+        // close
+        wrap.setAttribute("hidden", "");
+        trigger.setAttribute("aria-expanded", "false");
+        running = false;
+        window.removeEventListener("keydown", onSpace);
+      } else {
+        // open
+        wrap.removeAttribute("hidden");
+        trigger.setAttribute("aria-expanded", "true");
+        resetShuttle("player");
+        rally = 0;
+        running = true;
+        lastTime = 0;
+        canvas.focus();
+        window.addEventListener("keydown", onSpace);
+        canvas.addEventListener("click", onClick);
+        requestAnimationFrame(loop);
+      }
+    });
+
+    // Ensure canvas focuses on click for keyboard input.
+    canvas.tabIndex = 0;
+  }
+</script>

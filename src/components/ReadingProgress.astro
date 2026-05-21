@@ -1,0 +1,63 @@
+---
+// ReadingProgress — thin burgundy bar at top of viewport. Width = % through article.
+// Per plan: 0% when article top is at/below viewport bottom; 100% when article
+// bottom reaches viewport bottom. Uses requestAnimationFrame, passive scroll,
+// and aria-valuenow for screen readers.
+---
+
+<div
+  id="reading-progress"
+  role="progressbar"
+  aria-label="reading progress"
+  aria-valuemin="0"
+  aria-valuemax="100"
+  aria-valuenow="0"
+></div>
+
+<style>
+  #reading-progress {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 2px;
+    width: 0%;
+    background-color: var(--accent);
+    z-index: 100;
+    transition: width 100ms ease-out;
+    pointer-events: none;
+    will-change: width;
+  }
+</style>
+
+<script>
+  (() => {
+    const bar = document.getElementById("reading-progress");
+    const article = document.querySelector("article");
+    if (!bar || !article) return;
+
+    let ticking = false;
+
+    const update = () => {
+      const top = (article as HTMLElement).offsetTop;
+      const height = (article as HTMLElement).offsetHeight;
+      // 0% when article top is at/below viewport bottom; 100% when article
+      // bottom reaches viewport bottom. Matches the plan's committed formula.
+      const scrolled = window.scrollY + window.innerHeight - top;
+      const progress = Math.max(0, Math.min(100, (scrolled / height) * 100));
+      bar.style.width = `${progress}%`;
+      bar.setAttribute("aria-valuenow", String(Math.round(progress)));
+      ticking = false;
+    };
+
+    const onScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(update);
+        ticking = true;
+      }
+    };
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll, { passive: true });
+    update();
+  })();
+</script>

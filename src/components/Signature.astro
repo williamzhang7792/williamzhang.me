@@ -1,0 +1,124 @@
+---
+/**
+ * Signature — placeholder Caveat-traced "W. Zhang" rendered as SVG with
+ * stroke-dashoffset draw-in animation gated by safeStorage.
+ *
+ * Replace `/public/signature.svg` with your real handwritten signature within
+ * 30 days of launch. The replacement must be a single continuous path so the
+ * draw-in animation works; export from Figma/Illustrator as one path.
+ *
+ * Until the real version exists, this component renders a Caveat-font version
+ * of the name as text, then masks/animates it via SVG. This isn't true
+ * stroke-dashoffset (text doesn't have a stroke), so we use a fade-in + slide
+ * fallback that reads similarly: the signature appears as if it's being written.
+ *
+ * When you replace with the real SVG, swap the inner <text> for the path data
+ * and uncomment the stroke-dasharray block in the script.
+ */
+---
+
+<div class="signature-wrap" aria-hidden="true">
+  <svg
+    class="signature"
+    viewBox="0 0 240 72"
+    xmlns="http://www.w3.org/2000/svg"
+    role="img"
+    aria-label="William Zhang signature"
+  >
+    <text
+      x="0"
+      y="50"
+      class="sig-text"
+      font-family="Caveat, cursive"
+      font-size="56"
+      font-weight="600"
+      fill="currentColor"
+    >W. Zhang</text>
+
+    <!-- Tiny underline flourish -->
+    <path
+      class="sig-flourish"
+      d="M 4 64 Q 60 70 156 60 T 212 62"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.5"
+      stroke-linecap="round"
+    />
+  </svg>
+</div>
+
+<style>
+  .signature-wrap {
+    color: var(--accent);
+    line-height: 1;
+  }
+
+  .signature {
+    width: 120px;
+    height: auto;
+    display: block;
+  }
+
+  .sig-text {
+    /* The fade-in animation. Triggered by adding .sig-animate to .signature-wrap. */
+    opacity: 1;
+  }
+
+  .sig-flourish {
+    stroke-dasharray: 220;
+    stroke-dashoffset: 0;
+  }
+
+  /* When animation is requested (first visit), reset to "unwritten" state and
+     transition to "written". Persistent across both text and flourish. */
+  .signature-wrap.sig-animate .sig-text {
+    opacity: 0;
+    animation: sig-fade-in 1500ms ease-out forwards;
+  }
+
+  .signature-wrap.sig-animate .sig-flourish {
+    stroke-dashoffset: 220;
+    animation: sig-draw 900ms ease-in-out 700ms forwards;
+  }
+
+  @keyframes sig-fade-in {
+    from { opacity: 0; transform: translateX(-2px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+
+  @keyframes sig-draw {
+    to { stroke-dashoffset: 0; }
+  }
+
+  @media (max-width: 720px) {
+    .signature {
+      width: 96px;
+    }
+  }
+
+  /* Reduced motion: skip the animation entirely. */
+  @media (prefers-reduced-motion: reduce) {
+    .signature-wrap.sig-animate .sig-text,
+    .signature-wrap.sig-animate .sig-flourish {
+      animation: none !important;
+      opacity: 1;
+      stroke-dashoffset: 0;
+    }
+  }
+</style>
+
+<script>
+  import { safeStorage } from "~/lib/safeStorage";
+
+  const KEY = "wz-sig-seen";
+  const wrap = document.querySelector<HTMLElement>(".signature-wrap");
+  if (wrap) {
+    const seen = safeStorage.get(KEY);
+    if (!seen) {
+      // First visit (or storage unavailable) — animate.
+      wrap.classList.add("sig-animate");
+      // After animation completes, mark seen.
+      window.setTimeout(() => safeStorage.set(KEY, "1"), 2500);
+    }
+  }
+</script>

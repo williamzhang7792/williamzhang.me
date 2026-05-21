@@ -1,0 +1,136 @@
+---
+import BaseLayout from "~/layouts/BaseLayout.astro";
+import ReadingProgress from "~/components/ReadingProgress.astro";
+
+export interface Props {
+  title: string;
+  description: string;
+  date: Date;
+}
+
+const { title, description, date } = Astro.props;
+
+const formatLong = (d: Date) =>
+  d.toLocaleDateString("en-CA", { year: "numeric", month: "long", day: "numeric" });
+---
+
+<BaseLayout title={`${title} — William Zhang`} description={description} bodyClass="note-page">
+  <ReadingProgress />
+
+  <article class="note">
+    <header class="note-header">
+      <h1 class="note-title">{title}</h1>
+      <p class="note-date">{formatLong(date)}</p>
+    </header>
+
+    <div class="note-body">
+      <slot />
+    </div>
+  </article>
+
+  <p class="back">
+    <a href="/notes/" class="link-underline back-link">← all notes</a>
+  </p>
+</BaseLayout>
+
+<style>
+  .note-header {
+    margin-bottom: 36px;
+  }
+
+  .note-title {
+    font-family: var(--font-serif);
+    font-weight: 500;
+    font-size: 30px;
+    color: var(--accent);
+    margin: 0 0 6px 0;
+    line-height: 1.25;
+  }
+
+  .note-date {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text-muted);
+    margin: 0;
+    letter-spacing: 0.02em;
+  }
+
+  .note-body {
+    font-size: 18px;
+    line-height: 1.75;
+  }
+
+  .note-body :global(p) {
+    margin: 0 0 1.1em 0;
+  }
+
+  .note-body :global(h2) {
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-weight: 500;
+    font-size: 20px;
+    color: var(--accent);
+    margin: 2em 0 0.6em 0;
+  }
+
+  .note-body :global(h3) {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 1.6em 0 0.4em 0;
+  }
+
+  .note-body :global(a) {
+    color: var(--accent);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+    text-decoration-color: color-mix(in srgb, var(--accent) 35%, transparent);
+    transition: text-decoration-color var(--transition-base);
+  }
+
+  .note-body :global(a:hover),
+  .note-body :global(a:focus-visible) {
+    text-decoration-color: var(--accent);
+    outline: none;
+  }
+
+  .note-body :global(blockquote) {
+    margin: 1.5em 0;
+    padding-left: 18px;
+    border-left: 2px solid var(--border-subtle);
+    color: var(--text-muted);
+    font-style: italic;
+  }
+
+  .note-body :global(code) {
+    font-family: var(--font-mono);
+    font-size: 0.92em;
+    background: color-mix(in srgb, var(--accent) 6%, transparent);
+    padding: 0.1em 0.3em;
+    border-radius: 2px;
+  }
+
+  .note-body :global(pre) {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    background: color-mix(in srgb, var(--text-body) 4%, transparent);
+    padding: 14px 16px;
+    border-radius: 4px;
+    overflow-x: auto;
+    line-height: 1.5;
+  }
+
+  .note-body :global(pre code) {
+    background: none;
+    padding: 0;
+  }
+
+  .back {
+    margin-top: 64px;
+    font-style: italic;
+  }
+
+  .back-link {
+    color: var(--text-muted);
+  }
+</style>

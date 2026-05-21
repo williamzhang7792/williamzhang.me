@@ -1,0 +1,49 @@
+---
+const pathname = Astro.url.pathname;
+const isAbout = pathname === "/" || pathname === "";
+const isNotes = pathname.startsWith("/notes");
+---
+
+<nav class="site-nav" aria-label="Primary">
+  <a
+    href="/"
+    class:list={["nav-link link-underline", { active: isAbout }]}
+    aria-current={isAbout ? "page" : undefined}
+  >
+    about
+  </a>
+  <span class="nav-sep" aria-hidden="true">/</span>
+  <a
+    href="/notes/"
+    class:list={["nav-link link-underline", { active: isNotes }]}
+    aria-current={isNotes ? "page" : undefined}
+  >
+    notes
+  </a>
+</nav>
+
+<style>
+  .site-nav {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 56px;
+    font-size: 16px;
+    color: var(--text-muted);
+  }
+
+  .nav-link {
+    font-style: italic;
+    color: var(--text-muted);
+  }
+
+  .nav-link.active {
+    color: var(--accent);
+  }
+
+  .nav-sep {
+    color: var(--border-subtle);
+    font-style: italic;
+    user-select: none;
+  }
+</style>
