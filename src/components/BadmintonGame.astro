@@ -19,8 +19,9 @@
  *     clicked, the bot speaks "are u ready??" -> "3" -> "2" -> "1" before
  *     serving. Identifies the bot as the right figure (and the player as
  *     the left by elimination) without any text labels on the figures.
- *   - User figure drawn in a slightly warmer dark (#2C1A1E) vs the bot's
- *     pure body color (#1C1C1C) for subtle "this one is you" differentiation.
+ *   - User figure drawn in body ink (#1C1C1C); bot figure drawn in the
+ *     site's accent burgundy (#7A0E20). Two distinct theme colors —
+ *     burgundy ties the bot to William's signature and link accents.
  *
  * Mobile: tap-to-swing still works (touch-action: manipulation + touchstart).
  */
@@ -242,9 +243,13 @@
       paper:  css.getPropertyValue("--bg-paper").trim()      || "#f5eddd",
     } as const;
 
-    // User (left figure) drawn in a slightly warmer tint than the bot,
-    // a subtle "this one is you" identifier without text or accessories.
-    const USER_COLOR = "#2C1A1E";
+    // Two figure colors pulled straight from the site's theme tokens:
+    //   user (left)  -> ink body color (#1C1C1C, neutral visitor)
+    //   bot  (right) -> burgundy accent (#7A0E20, William's color, same
+    //                   one used for the signature, section labels, and
+    //                   link accents elsewhere on the site)
+    // Threaded through drawStickFigure -> drawRacket -> ghostRacketAt so
+    // both rackets and motion-blur trails track each figure's color.
 
     // ---------- state ----------
     let phase: Phase = "bot-to-user";
@@ -591,7 +596,7 @@
       const upperDip = headDip * 0.7;                    // body top tracks head ~70%
       const armAngle = armAngleFor(s.arm, isBot);
       const armLen = 10 + Math.max(0, s.arm) * 2;        // arm extends at peak
-      const figColor = isBot ? COLOR.body : USER_COLOR;  // user runs warmer
+      const figColor = isBot ? COLOR.accent : COLOR.body;
 
       ctx.save();
       ctx.strokeStyle = figColor;
