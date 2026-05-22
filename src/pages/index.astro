@@ -14,16 +14,12 @@ const title = `${about.name}`;
   </header>
 
   <p class="bio-line">
-    <span>Computing &amp; Statistics</span>
-    <span class="bio-school">
-      <span class="bio-at" aria-hidden="true">@</span>
-      <a
-        href="https://uwaterloo.ca/"
-        class="link-strong"
-        rel="noopener noreferrer"
-        target="_blank"
-      >UWaterloo</a>
-    </span>
+    Computing &amp; Statistics <span class="bio-at" aria-hidden="true">@</span> <a
+      href="https://uwaterloo.ca/"
+      class="link-strong"
+      rel="noopener noreferrer"
+      target="_blank"
+    >UWaterloo</a>
   </p>
 
   <section aria-labelledby="doing-label">
@@ -66,25 +62,10 @@ const title = `${about.name}`;
   }
 
   .bio-line {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 4px 12px;
     margin: 0 0 8px 0;
     font-size: 16px;
     line-height: 1.55;
     color: var(--text-body);
-  }
-
-  .bio-school {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .bio-icon {
-    color: var(--text-muted);
-    flex-shrink: 0;
   }
 
   .bio-at {
