@@ -2,7 +2,6 @@
 import BaseLayout from "~/layouts/BaseLayout.astro";
 import Bullet from "~/components/Bullet.astro";
 import BadmintonGame from "~/components/BadmintonGame.astro";
-import { Sigma } from "@lucide/astro";
 import { about } from "~/data/about";
 
 const title = `${about.name}`;
@@ -17,7 +16,7 @@ const title = `${about.name}`;
   <p class="bio-line">
     <span>Computing &amp; Statistics</span>
     <span class="bio-school">
-      <Sigma size={16} class="bio-icon" aria-hidden="true" stroke-width={1.6} />
+      <span class="bio-at" aria-hidden="true">@</span>
       <a
         href="https://uwaterloo.ca/"
         class="link-strong"
@@ -86,7 +85,12 @@ const title = `${about.name}`;
   .bio-icon {
     color: var(--text-muted);
     flex-shrink: 0;
-    /* No translateY — Sigma's optical center already aligns with text x-height. */
+  }
+
+  .bio-at {
+    color: var(--text-muted);
+    font-weight: 500;
+    user-select: none;
   }
 
   .bullets {
