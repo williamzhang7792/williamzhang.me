@@ -67,25 +67,36 @@
     overflow: visible;
   }
 
-  /* Reveal rect — starts at scaleX(0) (text fully clipped), animates to
-     scaleX(1) (text fully visible). transform-box:fill-box anchors the
-     transform-origin to the rect itself, not the SVG bounding box. */
+  /* Reveal rect — multi-stop keyframes simulate handwritten pacing with
+     intentional dwells at letter boundaries (after W, transitioning Z→h).
+     linear timing so the dwells actually function as pauses; cubic easing
+     would smooth them away. 200ms initial delay so the page paints first
+     and the signature begins drawing as if the document is now being signed. */
   .sig-reveal-rect {
     transform-box: fill-box;
     transform-origin: left center;
     transform: scaleX(0);
-    animation: sig-reveal 1.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    animation: sig-reveal 2s linear 200ms forwards;
   }
 
   @keyframes sig-reveal {
-    to { transform: scaleX(1); }
+    0%   { transform: scaleX(0); }
+    3%   { transform: scaleX(0.04); }   /* pen touches paper, brief settle */
+    22%  { transform: scaleX(0.20); }   /* W finished — wide capital */
+    28%  { transform: scaleX(0.22); }   /* dwell: pen lifts to dot the period */
+    34%  { transform: scaleX(0.31); }   /* period + space crossed */
+    60%  { transform: scaleX(0.52); }   /* Z (capital) drawn */
+    66%  { transform: scaleX(0.55); }   /* slight slowdown into lowercase h */
+    100% { transform: scaleX(1); }      /* "hang" flows continuously */
   }
 
-  /* Flourish — stroke-dashoffset animation. dasharray approximates path length. */
+  /* Flourish — slower S-curve: pen presses into paper (slow start),
+     accelerates through the sweep, eases off as it tapers. Starts after
+     the text reveal mostly completes (~85% of 2s = 1.7s). */
   .sig-flourish {
     stroke-dasharray: 240;
     stroke-dashoffset: 240;
-    animation: sig-draw 0.75s cubic-bezier(0.4, 0.2, 0.2, 1) 1.05s forwards;
+    animation: sig-draw 0.85s cubic-bezier(0.55, 0.05, 0.4, 1) 1.7s forwards;
   }
 
   @keyframes sig-draw {
