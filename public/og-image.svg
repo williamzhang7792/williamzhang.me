@@ -11,22 +11,22 @@
   </defs>
   <rect width="1200" height="630" filter="url(#paperNoise)"/>
 
-  <!-- name -->
+  <!-- W mark — linen tan tone-on-tone, replaces former "William Zhang" wordmark -->
   <text
     x="600"
-    y="320"
+    y="300"
     font-family="'Cormorant Garamond', Georgia, serif"
-    font-size="120"
+    font-size="280"
     font-weight="500"
     text-anchor="middle"
-    fill="#7A0E20"
-    letter-spacing="-1"
-  >William Zhang</text>
+    dominant-baseline="central"
+    fill="#C9B998"
+  >W</text>
 
   <!-- subtitle -->
   <text
     x="600"
-    y="380"
+    y="450"
     font-family="'Cormorant Garamond', Georgia, serif"
     font-style="italic"
     font-size="32"
@@ -35,13 +35,13 @@
     fill="#646564"
   >stats &amp; computing  ·  waterloo</text>
 
-  <!-- tiny hairline divider -->
-  <line x1="540" y1="430" x2="660" y2="430" stroke="#7A0E20" stroke-width="1"/>
+  <!-- tiny hairline divider, toned to match the W -->
+  <line x1="540" y1="490" x2="660" y2="490" stroke="#C9B998" stroke-width="1"/>
 
   <!-- bottom marker -->
   <text
     x="600"
-    y="475"
+    y="535"
     font-family="'IBM Plex Mono', monospace"
     font-size="18"
     text-anchor="middle"

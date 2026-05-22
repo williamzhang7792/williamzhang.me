@@ -1,20 +1,18 @@
 ---
 /**
- * BadmintonGame — timing rewrite (v1.7.4).
+ * BadmintonGame — beautification pass (v1.7.5).
  *
- * Deterministic timing/reflex rally. Bot auto-serves on a fixed parabolic
- * arc; the user must time Space / click / tap to swing within a 250ms
- * hit window centered on the moment the shuttle arrives at their racket.
- * Each successful hit ramps difficulty: both flight times shrink by
- * SPEED_RAMP. Miss → DOM game-over overlay with rally count + Play Again.
+ * Builds on v1.7.4's deterministic timing game:
+ *   - Both stick figures get visible racket heads (oval + cross-string)
+ *   - Body lean during peak swing (forward toward strike)
+ *   - Hit-flash ring on contact (200ms expand+fade)
+ *   - Bot has a hair tuft on top of head (replaces W badge)
+ *   - Bot occasionally pops a Caveat-italic phrase after a return
+ *   - On miss, shuttle continues past the racket and lands on the floor;
+ *     rests there ~700ms before the game-over overlay fades in
+ *   - "best: N" counter top-right via safeStorage persistence
  *
- * Swing animation is a symmetric bell curve so the peak (arm fully
- * raised) lines up with the moment of intent: input time for the user,
- * contact time for the bot. Bot's mid-rally returns are pre-scheduled
- * inside the user-to-bot tick so the windup is visible.
- *
- * Mobile: tap is bound to touchstart. The previous touch-hide fallback
- * is gone.
+ * Mobile: tap-to-swing still works (touch-action: manipulation + touchstart).
  */
 ---
 
@@ -117,7 +115,6 @@
   .bm-gameover {
     position: absolute;
     inset: 0 0 auto 0;
-    /* Match the canvas footprint, not the wrap (which also contains help text). */
     height: 300px;
     max-height: 100%;
     display: flex;
@@ -176,8 +173,12 @@
 </style>
 
 <script>
+  import { safeStorage } from "~/lib/safeStorage";
+
   type Pt = { x: number; y: number };
   type Phase = "bot-to-user" | "user-to-bot";
+  type HitFlash = { x: number; y: number; born: number };
+  type Bubble = { text: string; born: number };
 
   const trigger     = document.getElementById("bm-trigger");
   const wrap        = document.getElementById("bm-canvas-wrap");
@@ -198,18 +199,23 @@
     const USER_TO_BOT_FLIGHT_MS = 1000;
     const SPEED_RAMP           = 0.97;
     const SWING_ANIM_MS        = 150;
-    const PEAK_HEIGHT_PX       = 80;   // arc apex above linear midpoint; clears net comfortably
-    const POST_MISS_TAIL_MS    = 80;   // visual tail after window closes before rally end
+    const PEAK_HEIGHT_PX       = 80;
+    const FLOOR_REST_MS        = 700;
+    const HIT_FLASH_MS         = 200;
+    const BUBBLE_DURATION_MS   = 1500;
+    const BUBBLE_PROBABILITY   = 0.25;
 
     // ---------- geometry ----------
     const NET_X = W / 2;
     const FLOOR_Y = H - 20;
-    const PLAYER_X = 60;
-    const CPU_X    = W - 60;
+    const PLAYER_X = 100;          // pushed inward from 60 to give miss-zone landing space
+    const CPU_X    = W - 100;
     const SHOULDER_Y = FLOOR_Y - 18;
-    const IDLE_ARM_ANGLE  = -Math.PI / 3.5;   // arm pointing up-and-out
-    const SWING_ARM_ANGLE = -Math.PI / 1.9;   // arm fully raised on peak swing
-    // Racket head positions (idle pose) — used as arc endpoints.
+    const IDLE_ARM_ANGLE  = -Math.PI / 3.5;
+    const SWING_ARM_ANGLE = -Math.PI / 1.9;
+    // Racket head positions used as arc endpoints. The visible racket head
+    // sits at (handX + dir * 12) — these endpoints are offset by 16 from
+    // the shoulder (10 arm + ~6 to roughly the racket center).
     const userRacket: Pt = {
       x: PLAYER_X + Math.cos(IDLE_ARM_ANGLE) * 16,
       y: SHOULDER_Y + Math.sin(IDLE_ARM_ANGLE) * 16,
@@ -219,7 +225,7 @@
       y: SHOULDER_Y + Math.sin(IDLE_ARM_ANGLE) * 16,
     };
 
-    // ---------- theme colors (sourced from CSS custom properties) ----------
+    // ---------- theme colors ----------
     const css = getComputedStyle(document.documentElement);
     const COLOR = {
       body:   css.getPropertyValue("--text-body").trim()     || "#1c1c1c",
@@ -233,6 +239,7 @@
     let phaseStartTime = 0;
     let phaseDuration  = BOT_TO_USER_FLIGHT_MS;
     let rally = 0;
+    let bestRally = parseInt(safeStorage.get("wz-best-rally") ?? "0", 10) || 0;
     let lastSwingTime  = -Infinity;
     let userSwingStart = -Infinity;
     let botSwingStart  = -Infinity;
@@ -240,7 +247,21 @@
     let running  = false;
     let hiddenStart = 0;
 
-    // Caveat / Cormorant may still be loading; warm up.
+    // Miss / landing state
+    let landingPhase = false;     // user has missed; shuttle continues to floor
+    let landedAt = 0;             // performance.now() when shuttle.y first hit floor
+    let landedX = 0;              // x where the shuttle landed (frozen for floor rest)
+
+    // Effects
+    let hitFlashes: HitFlash[] = [];
+    let bubble: Bubble | null = null;
+
+    const bubblePool = [
+      "keep it up", "nice", "huh", "real?", "ok ok",
+      "warmup", "hmm", "oof", "uh oh", "you're cooking",
+      "ok flex", "...",
+    ];
+
     document.fonts?.ready?.catch(() => {});
 
     // ---------- helpers ----------
@@ -252,11 +273,6 @@
       return { x, y: yLinear + yArc };
     }
 
-    /**
-     * Bell curve, peaks at t = 0.5 with value 1.0. Returns 0 outside the
-     * animation window. Convention: caller sets swingStart = peakTime
-     * - SWING_ANIM_MS / 2 so the peak lines up with the intended moment.
-     */
     function swingFor(start: number, now: number): number {
       const elapsed = now - start;
       if (elapsed < 0 || elapsed > SWING_ANIM_MS) return 0;
@@ -270,11 +286,22 @@
         : { start: userRacket, endPt: botRacket  };
     }
 
-    /** Rotation that keeps the cork (shuttle's +y axis in local coords) pointing in direction of motion. */
     function shuttleRot(start: Pt, endPt: Pt, t: number): number {
       const dx = endPt.x - start.x;
       const dy = (endPt.y - start.y) - PEAK_HEIGHT_PX * 4 * (1 - 2 * t);
       return Math.atan2(-dx, dy);
+    }
+
+    function spawnHitFlash(x: number, y: number) {
+      hitFlashes.push({ x, y, born: performance.now() });
+    }
+
+    function maybeShowBubble() {
+      if (Math.random() > BUBBLE_PROBABILITY) return;
+      bubble = {
+        text: bubblePool[Math.floor(Math.random() * bubblePool.length)],
+        born: performance.now(),
+      };
     }
 
     // ---------- game flow ----------
@@ -284,9 +311,6 @@
       phaseStartTime = performance.now();
       phaseDuration = (p === "bot-to-user" ? BOT_TO_USER_FLIGHT_MS : USER_TO_BOT_FLIGHT_MS)
                     * Math.pow(SPEED_RAMP, rally);
-      // Bot swing for mid-rally returns is pre-scheduled in tick during
-      // the outgoing user-to-bot phase. The first serve (open / Play
-      // Again) is set up by startGame() below.
     }
 
     function startGame() {
@@ -296,17 +320,22 @@
       finalRallyEl!.textContent = "0";
       lastSwingTime  = -Infinity;
       userSwingStart = -Infinity;
+      hitFlashes = [];
+      bubble = null;
+      landingPhase = false;
+      landedAt = 0;
+      landedX = 0;
       startPhase("bot-to-user");
-      // First-serve bot swing: peak at phase start (when shuttle leaves
-      // the bot's racket). The wind-up half of the bell curve technically
-      // starts 75ms before phase start — invisible since the loop hasn't
-      // begun rendering yet — so the visible motion is the peak-to-idle
-      // follow-through, which reads as "bot just struck the bird."
+      // First-serve bot swing: peak at phase start.
       botSwingStart = phaseStartTime - SWING_ANIM_MS / 2;
       canvas!.focus();
     }
 
     function endRally() {
+      if (rally > bestRally) {
+        bestRally = rally;
+        safeStorage.set("wz-best-rally", String(bestRally));
+      }
       gameOver = true;
       finalRallyEl!.textContent = String(rally);
       overlayEl!.removeAttribute("hidden");
@@ -316,15 +345,16 @@
     function attemptSwing() {
       if (!running || gameOver) return;
       const now = performance.now();
-      if (now - lastSwingTime < SWING_COOLDOWN_MS) return; // silent ignore (no animation)
+      if (now - lastSwingTime < SWING_COOLDOWN_MS) return;
       lastSwingTime = now;
-      userSwingStart = now - SWING_ANIM_MS / 2;            // bell-curve peak at input time
+      userSwingStart = now - SWING_ANIM_MS / 2;
 
-      if (phase !== "bot-to-user") return;                 // not the user's turn — animation only
+      if (phase !== "bot-to-user" || landingPhase) return;
       const elapsed = now - phaseStartTime;
       const inWindow = Math.abs(elapsed - phaseDuration) <= HIT_WINDOW_MS / 2;
-      if (!inWindow) return;                               // out of window — animation only
+      if (!inWindow) return;
 
+      spawnHitFlash(userRacket.x, userRacket.y);
       rally++;
       startPhase("user-to-bot");
     }
@@ -337,20 +367,31 @@
       const t = elapsed / phaseDuration;
 
       if (phase === "user-to-bot") {
-        // Bot swing scheduling: peak (start + SWING_ANIM_MS / 2) lines
-        // up with contact at t = 1. Fires once per phase via the
-        // `botSwingStart < phaseStartTime` guard.
+        // Pre-schedule bot's return swing so the bell peak lines up with contact.
         if (botSwingStart < phaseStartTime
             && elapsed > phaseDuration - SWING_ANIM_MS / 2) {
           botSwingStart = now;
         }
         if (t >= 1) {
-          startPhase("bot-to-user");                       // bot auto-hits and serves back
+          spawnHitFlash(botRacket.x, botRacket.y);
+          if (rally > 0) maybeShowBubble();           // not on the very first serve
+          startPhase("bot-to-user");
           return;
         }
       } else {
-        // bot-to-user: rally ends if shuttle passes user without a hit.
-        if (elapsed > phaseDuration + HIT_WINDOW_MS / 2 + POST_MISS_TAIL_MS) {
+        // bot-to-user: detect miss + shuttle landing on floor
+        if (!landingPhase && elapsed > phaseDuration + HIT_WINDOW_MS / 2) {
+          landingPhase = true;
+        }
+        if (landingPhase && landedAt === 0) {
+          const { start, endPt } = currentArc();
+          const pos = arcPos(start, endPt, t);
+          if (pos.y >= FLOOR_Y) {
+            landedAt = now;
+            landedX = pos.x;
+          }
+        }
+        if (landedAt > 0 && now - landedAt > FLOOR_REST_MS) {
           endRally();
         }
       }
@@ -362,8 +403,8 @@
       ctx.save();
       ctx.strokeStyle = COLOR.muted;
       ctx.lineWidth = 0.6;
-      const xStart = W * 0.15;
-      const xEnd = W * 0.85;
+      const xStart = W * 0.08;
+      const xEnd = W * 0.92;
       const y = FLOOR_Y;
       ctx.beginPath();
       ctx.moveTo(xStart, y + (Math.random() - 0.5) * 0.4);
@@ -390,26 +431,61 @@
       ctx.restore();
     }
 
-    function drawStickFigure(x: number, label: string | null, swing: number) {
+    function drawRacket(handX: number, handY: number, armAngle: number) {
+      const headLen = 12;
+      const cx = handX + Math.cos(armAngle) * (headLen / 2);
+      const cy = handY + Math.sin(armAngle) * (headLen / 2);
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(armAngle + Math.PI / 2);
+      ctx.strokeStyle = COLOR.body;
+      ctx.lineWidth = 1.1;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 3.5, 6, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.lineWidth = 0.5;
+      ctx.beginPath();
+      ctx.moveTo(-3.5, 0); ctx.lineTo(3.5, 0);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawStickFigure(x: number, isBot: boolean, swing: number) {
       const baseY = FLOOR_Y;
+      const leanX = swing * 5 * (isBot ? -1 : 1);
+
       ctx.save();
       ctx.strokeStyle = COLOR.body;
       ctx.fillStyle = COLOR.body;
       ctx.lineWidth = 1.4;
       ctx.lineCap = "round";
 
-      // head
+      // head (leaned)
       ctx.beginPath();
-      ctx.arc(x, baseY - 26, 4, 0, Math.PI * 2);
+      ctx.arc(x + leanX, baseY - 26, 4, 0, Math.PI * 2);
       ctx.fill();
 
-      // body
+      // hair tuft on bot — three short upward strokes
+      if (isBot) {
+        ctx.lineWidth = 1.1;
+        ctx.beginPath();
+        ctx.moveTo(x + leanX - 3, baseY - 30);
+        ctx.lineTo(x + leanX - 2, baseY - 33);
+        ctx.moveTo(x + leanX,     baseY - 30);
+        ctx.lineTo(x + leanX,     baseY - 34);
+        ctx.moveTo(x + leanX + 3, baseY - 30);
+        ctx.lineTo(x + leanX + 2, baseY - 33);
+        ctx.stroke();
+        ctx.lineWidth = 1.4;
+      }
+
+      // body — leaned shoulder down to fixed pelvis
       ctx.beginPath();
-      ctx.moveTo(x, baseY - 22);
+      ctx.moveTo(x + leanX, baseY - 22);
       ctx.lineTo(x, baseY - 8);
       ctx.stroke();
 
-      // legs (slight V stance)
+      // legs (slight V stance, planted)
       ctx.beginPath();
       ctx.moveTo(x, baseY - 8);
       ctx.lineTo(x - 4, baseY);
@@ -417,28 +493,21 @@
       ctx.lineTo(x + 4, baseY);
       ctx.stroke();
 
-      // racket arm — angle pivots up on swing (mirrored for the bot).
-      const isBot = label !== null;
+      // arm — shoulder leans, hand pivots to swing angle
       const idleA  = isBot ? Math.PI - IDLE_ARM_ANGLE  : IDLE_ARM_ANGLE;
       const swingA = isBot ? Math.PI - SWING_ARM_ANGLE : SWING_ARM_ANGLE;
       const armAngle = idleA + (swingA - idleA) * swing;
-      const handX = x + Math.cos(armAngle) * 10;
+      const shoulderXLean = x + leanX;
+      const handX = shoulderXLean + Math.cos(armAngle) * 10;
       const handY = SHOULDER_Y + Math.sin(armAngle) * 10;
       ctx.beginPath();
-      ctx.moveTo(x, SHOULDER_Y);
+      ctx.moveTo(shoulderXLean, SHOULDER_Y);
       ctx.lineTo(handX, handY);
-      // racket head — short stroke past the hand
-      ctx.moveTo(handX, handY);
-      ctx.lineTo(handX + Math.cos(armAngle) * 6, handY + Math.sin(armAngle) * 6);
       ctx.stroke();
 
-      if (label) {
-        ctx.fillStyle = COLOR.accent;
-        ctx.font = "600 italic 16px Caveat, cursive";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "alphabetic";
-        ctx.fillText(label, x, baseY - 36);
-      }
+      // racket head at the end of the arm
+      drawRacket(handX, handY, armAngle);
+
       ctx.restore();
     }
 
@@ -446,8 +515,17 @@
       const { start, endPt } = currentArc();
       const elapsed = now - phaseStartTime;
       const t = Math.max(0, elapsed / phaseDuration);
-      const pos = arcPos(start, endPt, t);
-      const rot = shuttleRot(start, endPt, t);
+      let pos = arcPos(start, endPt, t);
+      let rot = shuttleRot(start, endPt, t);
+
+      // After landing, freeze shuttle on the floor at landed position.
+      if (landedAt > 0) {
+        pos = { x: landedX, y: FLOOR_Y };
+        rot = Math.PI / 2; // sideways on floor (cork pointing in arc direction)
+        // Actually use last computed rotation pre-landing — keep shuttle's
+        // "lying down" look. For simplicity, use sideways relative to flight.
+        rot = phase === "bot-to-user" ? Math.PI / 2 : -Math.PI / 2;
+      }
 
       ctx.save();
       ctx.translate(pos.x, pos.y);
@@ -457,7 +535,6 @@
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
       ctx.beginPath();
-      // feathers fanning up from cork at +y (cork = forward in flight)
       for (let i = -2; i <= 2; i++) {
         ctx.moveTo(0, 4);
         ctx.lineTo(i * 2.4, -7);
@@ -470,6 +547,42 @@
       ctx.restore();
     }
 
+    function drawHitFlashes(now: number) {
+      ctx.save();
+      for (const f of hitFlashes) {
+        const age = now - f.born;
+        if (age > HIT_FLASH_MS || age < 0) continue;
+        const t = age / HIT_FLASH_MS;
+        ctx.globalAlpha = 1 - t;
+        ctx.strokeStyle = COLOR.accent;
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.arc(f.x, f.y, 2 + t * 12, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      hitFlashes = hitFlashes.filter(f => now - f.born <= HIT_FLASH_MS);
+      ctx.restore();
+    }
+
+    function drawBubble(now: number) {
+      if (!bubble) return;
+      const age = now - bubble.born;
+      if (age > BUBBLE_DURATION_MS) {
+        bubble = null;
+        return;
+      }
+      const fadeIn = Math.min(1, age / 200);
+      const fadeOut = Math.min(1, (BUBBLE_DURATION_MS - age) / 400);
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, Math.min(fadeIn, fadeOut));
+      ctx.fillStyle = COLOR.accent;
+      ctx.font = "500 italic 19px Caveat, cursive";
+      ctx.textAlign = "right";
+      ctx.textBaseline = "alphabetic";
+      ctx.fillText(bubble.text, CPU_X - 10, FLOOR_Y - 50);
+      ctx.restore();
+    }
+
     function drawCounter() {
       ctx.save();
       ctx.fillStyle = COLOR.accent;
@@ -477,6 +590,11 @@
       ctx.textBaseline = "top";
       ctx.textAlign = "left";
       ctx.fillText(`rally: ${rally}`, 14, 12);
+
+      ctx.fillStyle = COLOR.muted;
+      ctx.font = "500 italic 14px Caveat, cursive";
+      ctx.textAlign = "right";
+      ctx.fillText(`best: ${bestRally}`, W - 14, 14);
       ctx.restore();
     }
 
@@ -485,8 +603,10 @@
       drawCourtLine();
       drawNet();
       drawShuttle(now);
-      drawStickFigure(PLAYER_X, null, swingFor(userSwingStart, now));
-      drawStickFigure(CPU_X,    "W",  swingFor(botSwingStart,  now));
+      drawHitFlashes(now);
+      drawStickFigure(PLAYER_X, false, swingFor(userSwingStart, now));
+      drawStickFigure(CPU_X,    true,  swingFor(botSwingStart,  now));
+      drawBubble(now);
       drawCounter();
     }
 
@@ -516,7 +636,7 @@
       attemptSwing();
     }
 
-    // ---------- visibility (tab-away handling) ----------
+    // ---------- visibility ----------
 
     function onVisibilityChange() {
       if (!running || gameOver) return;
@@ -528,6 +648,9 @@
         if (lastSwingTime  > -Infinity) lastSwingTime  += offset;
         if (userSwingStart > -Infinity) userSwingStart += offset;
         if (botSwingStart  > -Infinity) botSwingStart  += offset;
+        if (landedAt > 0) landedAt += offset;
+        for (const f of hitFlashes) f.born += offset;
+        if (bubble) bubble.born += offset;
       }
     }
 
@@ -541,7 +664,6 @@
     trigger.addEventListener("click", () => {
       const isOpen = wrap.hasAttribute("hidden") === false;
       if (isOpen) {
-        // Close
         wrap.setAttribute("hidden", "");
         trigger.setAttribute("aria-expanded", "false");
         running = false;
@@ -552,7 +674,6 @@
         canvas.removeEventListener("touchstart", onTouchStart);
         document.removeEventListener("visibilitychange", onVisibilityChange);
       } else {
-        // Open — fresh game
         wrap.removeAttribute("hidden");
         trigger.setAttribute("aria-expanded", "true");
         running = true;
