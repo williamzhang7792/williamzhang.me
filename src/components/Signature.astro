@@ -67,16 +67,33 @@
     overflow: visible;
   }
 
-  /* Reveal rect — multi-stop keyframes simulate handwritten pacing with
-     intentional dwells at letter boundaries (after W, transitioning Z→h).
-     linear timing so the dwells actually function as pauses; cubic easing
-     would smooth them away. 200ms initial delay so the page paints first
-     and the signature begins drawing as if the document is now being signed. */
+  /* Default state: fully revealed + flourish fully drawn. Signature is
+     STATIC on every page that isn't the about page (notes index, individual
+     notes). The animation only runs when body.about-page is set. */
   .sig-reveal-rect {
     transform-box: fill-box;
     transform-origin: left center;
+    transform: scaleX(1);
+  }
+
+  .sig-flourish {
+    stroke-dasharray: 240;
+    stroke-dashoffset: 0;
+  }
+
+  /* About page only: flip defaults to "unwritten" and run the animation.
+     Multi-stop keyframes simulate handwritten pacing with intentional
+     dwells at letter boundaries (after W, transitioning Z→h). 200ms
+     initial delay so the page paints first and the signature begins
+     drawing as if the document is now being signed. */
+  body.about-page .sig-reveal-rect {
     transform: scaleX(0);
     animation: sig-reveal 2s linear 200ms forwards;
+  }
+
+  body.about-page .sig-flourish {
+    stroke-dashoffset: 240;
+    animation: sig-draw 0.85s cubic-bezier(0.55, 0.05, 0.4, 1) 1.7s forwards;
   }
 
   @keyframes sig-reveal {
@@ -90,15 +107,6 @@
     100% { transform: scaleX(1); }      /* "hang" flows continuously */
   }
 
-  /* Flourish — slower S-curve: pen presses into paper (slow start),
-     accelerates through the sweep, eases off as it tapers. Starts after
-     the text reveal mostly completes (~85% of 2s = 1.7s). */
-  .sig-flourish {
-    stroke-dasharray: 240;
-    stroke-dashoffset: 240;
-    animation: sig-draw 0.85s cubic-bezier(0.55, 0.05, 0.4, 1) 1.7s forwards;
-  }
-
   @keyframes sig-draw {
     to { stroke-dashoffset: 0; }
   }
@@ -109,13 +117,13 @@
     }
   }
 
-  /* Reduced motion: skip both animations, jump to final state. */
+  /* Reduced motion: skip the about-page animation, jump to final state. */
   @media (prefers-reduced-motion: reduce) {
-    .sig-reveal-rect {
+    body.about-page .sig-reveal-rect {
       transform: scaleX(1);
       animation: none;
     }
-    .sig-flourish {
+    body.about-page .sig-flourish {
       stroke-dashoffset: 0;
       animation: none;
     }

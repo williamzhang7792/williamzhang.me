@@ -7,7 +7,7 @@ import { about } from "~/data/about";
 const title = `${about.name}`;
 ---
 
-<BaseLayout title={title} description={about.positioning}>
+<BaseLayout title={title} description={about.positioning} bodyClass="about-page">
   <header class="about-header">
     <h1 class="name">{about.name}</h1>
     <p class="location">{about.location}</p>
