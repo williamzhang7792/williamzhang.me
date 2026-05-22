@@ -93,9 +93,13 @@ a {
 .paper {
   position: relative;
   max-width: 700px;
-  margin: 32px auto;
+  /* Asymmetric vertical margins — eyes land at the top so a smaller top
+     margin keeps the name above the fold; larger bottom margin gives the
+     paper visual rest and guarantees a strip of linen below the paper edge
+     even on dense-content pages where the user has to scroll. */
+  margin: 32px auto 80px auto;
   padding: 40px 60px;
-  min-height: calc(100vh - 64px);
+  min-height: calc(100vh - 112px);
   background-color: var(--bg-paper);
   border-radius: 2px;
   box-shadow:
@@ -237,38 +241,16 @@ body.notes-index .paper {
 }
 
 /* ============================================================
-   Skip link — keyboard users can jump straight to content.
-   ============================================================ */
-.skip-link {
-  position: absolute;
-  top: -40px;
-  left: 8px;
-  background: var(--bg-paper);
-  color: var(--accent);
-  padding: 6px 12px;
-  border: 1px solid var(--accent);
-  border-radius: 2px;
-  font-size: 14px;
-  z-index: 200;
-  transition: top var(--transition-base);
-}
-
-.skip-link:focus {
-  top: 8px;
-  outline: none;
-}
-
-/* ============================================================
    Mobile — single breakpoint at 720px.
    ============================================================ */
 @media (max-width: 720px) {
   .paper {
-    margin: 16px auto;
+    margin: 16px auto 48px auto;
     padding: 32px 24px;
     box-shadow:
       var(--paper-shadow-mobile),
       inset 0 0 0 1px color-mix(in srgb, var(--accent) 4%, transparent);
-    min-height: calc(100vh - 32px);
+    min-height: calc(100vh - 64px);
   }
 }
 

@@ -71,11 +71,10 @@ const buildDate = import.meta.env.BUILD_DATE ?? "—";
     />
   </head>
   <body class={bodyClass} data-build-date={buildDate}>
-    <a href="#main-content" class="skip-link">skip to content</a>
     <main class="paper">
       <WashiTexture />
       <Nav />
-      <div id="main-content"><slot /></div>
+      <slot />
       <Footer hideSignature={hideSignature} buildDate={buildDate} />
     </main>
     <Analytics />
