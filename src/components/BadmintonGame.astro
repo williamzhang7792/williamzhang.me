@@ -281,10 +281,17 @@
     const INTRO_DURATION_MS = INTRO_SEGMENTS[INTRO_SEGMENTS.length - 1].end;
 
     const bubblePool = [
+      "im gonna speed up!",
       "keep it up", "nice", "huh", "real?", "ok ok",
       "warmup", "hmm", "oof", "uh oh", "you're cooking",
       "ok flex", "...",
     ];
+
+    // The very first bubble after a user hit is always "im gonna speed up!"
+    // — bot warning the player about the difficulty ramp. Subsequent bubbles
+    // pull randomly from the pool above (which still contains the same line,
+    // so it can reappear later).
+    let firstBubbleShown = false;
 
     document.fonts?.ready?.catch(() => {});
 
@@ -357,6 +364,12 @@
     }
 
     function maybeShowBubble() {
+      // First successful bot return per game: always announce the speed ramp.
+      if (!firstBubbleShown) {
+        firstBubbleShown = true;
+        bubble = { text: "im gonna speed up!", born: performance.now() };
+        return;
+      }
       if (Math.random() > BUBBLE_PROBABILITY) return;
       bubble = {
         text: bubblePool[Math.floor(Math.random() * bubblePool.length)],
@@ -383,6 +396,7 @@
       botSwingStart  = -Infinity;        // bot stays idle through the intro
       hitFlashes = [];
       bubble = null;
+      firstBubbleShown = false;          // bot will reannounce "im gonna speed up!"
       landingPhase = false;
       landedAt = 0;
       landedX = 0;
