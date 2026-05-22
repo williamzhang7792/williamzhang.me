@@ -164,7 +164,7 @@
   type HitFlash = { x: number; y: number; t: number };
   type TrailDot = { x: number; y: number; t: number };
   type ShotKind = "smash" | "clear" | "drop";
-  type ShotLabel = { text: string; t: number };
+  type ShotLabel = { text: string; t: number; perfect: boolean };
   type GameState = "idle" | "rally";
 
   const trigger = document.getElementById("bm-trigger");
@@ -180,6 +180,7 @@
 
     // Hit circle around the visitor.
     const HIT_CIRCLE_RADIUS = 30;
+    const PERFECT_RADIUS = HIT_CIRCLE_RADIUS * 0.5; // 15px inner perfect zone
     const HIT_CENTER_OFFSET_Y = 24; // from FLOOR_Y; circle center y = FLOOR_Y - this
 
     // CPU only swings once shuttle is descending and below this y.
@@ -218,6 +219,7 @@
     let playerHasHit = false; // prevents double-hit on same shuttle pass
     let wastedSwings = 0;     // swings outside the hit circle this rally
     let shotLabel: ShotLabel | null = null;
+    let lastShotWasPerfectSmash = false; // CPU has a harder time returning these
 
     // Caveat font may not be loaded at first paint; let it warm up.
     document.fonts?.ready?.catch(() => {});
@@ -248,8 +250,10 @@
       return shuttle.x < NET_X;
     }
 
-    function showShotLabel(shot: ShotKind) {
-      shotLabel = { text: shot + "!", t: 1 };
+    function showShotLabel(shot: ShotKind, isPerfect: boolean) {
+      const text = isPerfect ? `perfect ${shot}!` : `${shot}!`;
+      // Perfect labels stay visible 25% longer for the skill-ceiling reward feel.
+      shotLabel = { text, t: isPerfect ? 1.25 : 1, perfect: isPerfect };
     }
 
     // --- state transitions ---
@@ -276,12 +280,20 @@
       rally = 0;
       wastedSwings = 0;
       playerHasHit = false;
-      // Shuttle launches from the player position arcing toward CPU side.
-      shuttle.x = playerX + 6;
-      shuttle.y = 40;
-      shuttle.vx = rand(2.6, 3.2);
-      shuttle.vy = rand(-1.6, -1.0);
+
+      // Shuttle starts at the player's racket-hand position. Idle arm angle
+      // is -PI/3.5, arm length 10, shoulder at FLOOR_Y - 18 — matches what
+      // drawStickFigure renders so the shuttle visibly leaves the racket.
+      const shoulderY = FLOOR_Y - 18;
+      const idleArmAngle = -Math.PI / 3.5;
+      shuttle.x = playerX + Math.cos(idleArmAngle) * 10;
+      shuttle.y = shoulderY + Math.sin(idleArmAngle) * 10;
+
+      // Underhand serve — gentle upward arc forward over the net.
+      shuttle.vx = rand(1.8, 2.2);
+      shuttle.vy = rand(-4.2, -3.7);
       shuttle.rot = 0;
+
       lastHitter = "player";
       playerSwinging = 1;
       resetFadeT = 1;
@@ -299,20 +311,24 @@
       const dist = Math.sqrt(dx * dx + dy * dy);
 
       if (dist <= HIT_CIRCLE_RADIUS) {
-        // Inside circle — successful hit. Determine shot type from where in
-        // the circle the shuttle is: high (top third) = smash, mid = clear,
-        // low (bottom third) = drop.
+        // Inside circle — successful hit. Two dimensions:
+        //   - Distance to center: inside PERFECT_RADIUS = perfect tier
+        //   - Y-position in circle: top = smash, mid = clear, bottom = drop
+        const isPerfect = dist <= PERFECT_RADIUS;
         const relY = (dy + HIT_CIRCLE_RADIUS) / (HIT_CIRCLE_RADIUS * 2);
         let shot: ShotKind;
         if (relY < 0.34) shot = "smash";
         else if (relY < 0.67) shot = "clear";
         else shot = "drop";
 
-        executePlayerShot(shot);
+        executePlayerShot(shot, isPerfect);
+        // Track if the player's last hit was a perfect smash so the CPU's
+        // miss probability can spike against it (skill rewards loop).
+        lastShotWasPerfectSmash = isPerfect && shot === "smash";
         rally++;
         playerHasHit = true;
         playerSwinging = 1;
-        showShotLabel(shot);
+        showShotLabel(shot, isPerfect);
         hitFlashes.push({ x: shuttle.x, y: shuttle.y, t: 1 });
       } else {
         // Outside circle — wasted swing.
@@ -324,16 +340,18 @@
 
     // --- shot trajectories ---
 
-    function executePlayerShot(shot: ShotKind) {
+    function executePlayerShot(shot: ShotKind, isPerfect: boolean) {
       const targetX = clamp(NET_X + rand(60, W - NET_X - 60), NET_X + 50, W - 30);
       const dx = targetX - shuttle.x;
+      // Perfect hits: ~15% more power, tighter trajectory variance.
+      const power = isPerfect ? 1.15 : 1.0;
 
       if (shot === "smash") {
-        shuttle.vx = Math.max(3.4, dx / 26);
-        shuttle.vy = rand(-1.4, -0.6);
+        shuttle.vx = Math.max(3.4 * power, dx / 26);
+        shuttle.vy = rand(-1.4, -0.6) * power;
       } else if (shot === "clear") {
         shuttle.vx = clamp(dx / 60, 1.3, 2.6);
-        shuttle.vy = rand(-3.6, -3.0);
+        shuttle.vy = rand(-3.6, -3.0) * power;
       } else {
         // drop — barely crosses net, falls quickly
         shuttle.vx = Math.max(1.2, (NET_X + 50 - shuttle.x) / 50);
@@ -449,9 +467,12 @@
         cpuReactionTimer -= dt;
         if (cpuReactionTimer <= 0) {
           cpuReacting = false;
-          // miss probability climbs slowly with rally length so very long
+          // Miss probability climbs slowly with rally length so very long
           // rallies remain possible but losing eventually happens organically.
-          const missProb = Math.min(0.35, 0.12 + rally * 0.005);
+          // Perfect smashes are genuinely harder to return — bump miss
+          // probability +10% so precision is rewarded with occasional wins.
+          let missProb = Math.min(0.35, 0.12 + rally * 0.005);
+          if (lastShotWasPerfectSmash) missProb = Math.min(0.55, missProb + 0.1);
           const stillInZone =
             shuttle.x >= NET_X &&
             shuttle.vy >= 0 &&
@@ -459,6 +480,7 @@
             shuttle.y < FLOOR_Y;
           if (stillInZone && Math.random() > missProb) {
             executeCpuShot();
+            lastShotWasPerfectSmash = false; // consumed by this hit
           }
           // else: CPU misses; shuttle keeps falling, ends the rally below.
         }
@@ -534,23 +556,95 @@
       ctx.restore();
     }
 
+    /**
+     * Project the shuttle's trajectory forward to find where it will land.
+     * Returns the predicted X coordinate at FLOOR_Y, or null if the shuttle
+     * is going to bounce off a wall before landing (telegraph would be
+     * inaccurate in that case — better to show nothing than mislead).
+     *
+     * Uses iterative simulation against the same physics constants as tick()
+     * so the prediction matches what's about to happen.
+     */
+    function computeLanding(): number | null {
+      let x = shuttle.x;
+      let y = shuttle.y;
+      let vx = shuttle.vx;
+      let vy = shuttle.vy;
+      const gravity = 0.12;
+      for (let i = 0; i < 200; i++) {
+        vy += gravity;
+        vx *= 0.997;
+        x += vx;
+        y += vy;
+        if (x < 6 || x > W - 6) return null;
+        if (y >= FLOOR_Y) return clamp(x, 6, W - 6);
+      }
+      return null;
+    }
+
+    function drawLandingTelegraph() {
+      if (state !== "rally") return;
+      if (shuttle.vy < 0) return; // only on descent
+      if (resetFadeT < 1) return;
+      const lx = computeLanding();
+      if (lx === null) return;
+
+      ctx.save();
+      // Opacity ramps with vertical progress — barely visible at peak,
+      // brightens as shuttle approaches landing.
+      const verticalProgress = clamp(
+        (shuttle.y - 40) / (FLOOR_Y - 40),
+        0,
+        1,
+      );
+      const alpha = 0.12 + verticalProgress * 0.35;
+
+      ctx.fillStyle = COLOR.muted;
+      ctx.globalAlpha = alpha;
+      ctx.beginPath();
+      ctx.arc(lx, FLOOR_Y, 3, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Faint outer ring to read as "this is where" rather than a stray pixel.
+      ctx.strokeStyle = COLOR.muted;
+      ctx.globalAlpha = alpha * 0.6;
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      ctx.arc(lx, FLOOR_Y, 6, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
     function drawHitCircle() {
       // Constant circle around the visitor — visual hit-zone marker.
-      // Brightens when the shuttle is inside.
+      // Outer ring brightens when the shuttle is inside.
+      // Inner dot marks the perfect-tier sub-zone — brightens when the
+      // shuttle enters it, telegraphing "you're about to land a perfect hit."
       const cx = playerX;
       const cy = FLOOR_Y - HIT_CENTER_OFFSET_Y;
       const dx = shuttle.x - cx;
       const dy = shuttle.y - cy;
       const dist = Math.sqrt(dx * dx + dy * dy);
       const inside = dist <= HIT_CIRCLE_RADIUS;
+      const inPerfect = dist <= PERFECT_RADIUS;
 
       ctx.save();
+
+      // Outer ring
       ctx.strokeStyle = COLOR.accent;
       ctx.lineWidth = inside ? 1.6 : 1;
       ctx.globalAlpha = inside ? 0.5 : 0.16;
       ctx.beginPath();
       ctx.arc(cx, cy, HIT_CIRCLE_RADIUS, 0, Math.PI * 2);
       ctx.stroke();
+
+      // Inner perfect-zone dot
+      ctx.fillStyle = COLOR.accent;
+      ctx.globalAlpha = inPerfect ? 0.6 : inside ? 0.25 : 0.08;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+
       ctx.restore();
     }
 
@@ -699,11 +793,17 @@
       ctx.save();
       ctx.globalAlpha = clamp(shotLabel.t, 0, 1);
       ctx.fillStyle = COLOR.accent;
-      ctx.font = "italic 18px Caveat, cursive";
+      // Perfect labels render slightly larger and bolder for skill reward.
+      const size = shotLabel.perfect ? 20 : 18;
+      const weight = shotLabel.perfect ? "600" : "400";
+      ctx.font = `${weight} italic ${size}px Caveat, cursive`;
       ctx.textAlign = "center";
       ctx.textBaseline = "alphabetic";
       // Float the label slightly upward as it fades for a "lift" feel.
-      const lift = (1 - shotLabel.t) * 12;
+      // Use min(t, 1) for the lift calc so the perfect-tier 1.25 boost
+      // doesn't push the label below its starting position.
+      const liftBase = Math.min(shotLabel.t, 1);
+      const lift = (1 - liftBase) * 12;
       ctx.fillText(shotLabel.text, playerX, FLOOR_Y - 60 - lift);
       ctx.restore();
     }
@@ -751,6 +851,7 @@
       drawWashi();
       drawCourtLine();
       drawNet();
+      drawLandingTelegraph();
       drawHitCircle();
       drawShuttle();
       drawHitFlashes();
