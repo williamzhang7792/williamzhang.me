@@ -9,9 +9,11 @@ const notes = all
   .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
 
 const formatDate = (d: Date) => {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
+  // Use UTC getters so a frontmatter date like `2026-05-21` always renders
+  // as 2026.05.21 regardless of the build server's timezone.
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(d.getUTCDate()).padStart(2, "0");
   return `${y}.${m}.${day}`;
 };
 ---
@@ -19,6 +21,7 @@ const formatDate = (d: Date) => {
 <BaseLayout
   title="notes — William Zhang"
   description="Half-formed thoughts on actuarial work, AI risk, and modern technology. By William Zhang."
+  bodyClass="notes-index"
 >
   <header class="notes-header">
     <h1 class="page-label">notes</h1>

@@ -11,7 +11,14 @@ export interface Props {
 const { title, description, date } = Astro.props;
 
 const formatLong = (d: Date) =>
-  d.toLocaleDateString("en-CA", { year: "numeric", month: "long", day: "numeric" });
+  // timeZone: UTC pins the displayed date to the frontmatter value, avoiding
+  // off-by-one shifts when the build server's local time crosses midnight.
+  d.toLocaleDateString("en-CA", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    timeZone: "UTC",
+  });
 ---
 
 <BaseLayout title={`${title} — William Zhang`} description={description} bodyClass="note-page">

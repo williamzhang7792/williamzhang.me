@@ -86,15 +86,24 @@ export const about: About = {
   thinking: [
     {
       icon: "GitBranch",
-      parts: ["The bifurcation of actuarial work — where the integrated path leads"],
+      parts: [
+        { label: "The actuarial bifurcation", href: "/notes/actuarial-bifurcation/" },
+        " — what the integrated path means",
+      ],
     },
     {
       icon: "Network",
-      parts: ["AI agent liability insurance as an emerging risk category"],
+      parts: [
+        { label: "AI agent liability", href: "/notes/ai-agent-liability/" },
+        " — pricing where the toolkit doesn't apply",
+      ],
     },
     {
       icon: "Building2",
-      parts: ["How modern MGAs change what actuarial work actually looks like"],
+      parts: [
+        { label: "Modern MGAs", href: "/notes/modern-mgas/" },
+        " — what they change about actuarial work",
+      ],
     },
     {
       icon: "shuttlecock",
