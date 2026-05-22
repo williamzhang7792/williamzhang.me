@@ -37,7 +37,7 @@ export const about: About = {
     {
       icon: "Briefcase",
       parts: [
-        "Actuarial Analyst Intern @ ",
+        "Actuarial Analyst Intern · ",
         { label: "Intact", href: "https://www.intact.ca" },
         " (Jan-Apr 2026)",
       ],
@@ -45,7 +45,7 @@ export const about: About = {
     {
       icon: "Briefcase",
       parts: [
-        "Actuarial Analyst Intern @ ",
+        "Actuarial Analyst Intern · ",
         { label: "Pacific Life Re", href: "https://www.pacificlifere.com" },
         " (Summer 2025)",
       ],
@@ -69,7 +69,7 @@ export const about: About = {
     {
       icon: "Award",
       parts: [
-        "1st @ ",
+        "1st · ",
         { label: "SOA Research Challenge", href: "https://www.soa.org/research/research-challenge/" },
         " (2025, 68 international teams)",
       ],
@@ -77,7 +77,7 @@ export const about: About = {
     {
       icon: "Medal",
       parts: [
-        "1st @ ",
+        "1st · ",
         { label: "CPA Case Challenge", href: "https://www.cpacanada.ca" },
         " (2024, 75 national teams)",
       ],
