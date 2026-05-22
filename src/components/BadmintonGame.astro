@@ -1,23 +1,20 @@
 ---
 /**
- * BadmintonGame — dot rally (v1.7.3).
+ * BadmintonGame — timing rewrite (v1.7.4).
  *
- * Two fixed circles, a shuttle, a court. Click anywhere on your side
- * to hit it back. The bot's circle has a cream "W" reversed out
- * (matches the shuttlecock favicon's hanko energy). Maximum
- * simplification — no stick figures, no hit ring, no swing animation,
- * no trail, no flash messages, no washi noise.
+ * Deterministic timing/reflex rally. Bot auto-serves on a fixed parabolic
+ * arc; the user must time Space / click / tap to swing within a 250ms
+ * hit window centered on the moment the shuttle arrives at their racket.
+ * Each successful hit ramps difficulty: both flight times shrink by
+ * SPEED_RAMP. Miss → DOM game-over overlay with rally count + Play Again.
  *
- * Mechanics:
- *   - Shuttle auto-launches from the user's circle on open and after
- *     each rally end (800ms pause)
- *   - Click/space while shuttle is on player side = hit
- *   - CPU returns automatically with a small flat miss probability
- *     that scales gently with rally length (12-27%)
- *   - Shuttle hits floor → 800ms freeze → auto-serve
+ * Swing animation is a symmetric bell curve so the peak (arm fully
+ * raised) lines up with the moment of intent: input time for the user,
+ * contact time for the bot. Bot's mid-rally returns are pre-scheduled
+ * inside the user-to-bot tick so the windup is visible.
  *
- * Lazy-mounted: canvas is collapsed by default. Hidden on touch via
- * @media (hover: none); the .bm-touch-fallback line shows instead.
+ * Mobile: tap is bound to touchstart. The previous touch-hide fallback
+ * is gone.
  */
 ---
 
@@ -32,15 +29,15 @@
     play a quick rally :)
   </button>
 
-  <p class="bm-touch-fallback" aria-hidden="true">
-    a small badminton mini-game hides on this page, but it needs a real keyboard. come back on desktop sometime :)
-  </p>
-
   <div id="bm-canvas-wrap" class="bm-canvas-wrap" hidden>
     <canvas id="bm-canvas" width="400" height="300" aria-label="Badminton rally game"></canvas>
     <p class="bm-help">
       <span class="bm-help-key">space</span> or <span class="bm-help-key">click</span> to hit.
     </p>
+    <div id="bm-gameover" class="bm-gameover" hidden aria-live="polite">
+      <p class="bm-gameover-rally">rally: <span id="bm-final-rally">0</span></p>
+      <button type="button" id="bm-play-again" class="bm-play-again">play again</button>
+    </div>
   </div>
 </section>
 
@@ -75,15 +72,8 @@
     outline: none;
   }
 
-  .bm-touch-fallback {
-    display: none;
-    margin: 8px 0 0 0;
-    font-style: italic;
-    font-size: 15px;
-    color: var(--text-muted);
-  }
-
   .bm-canvas-wrap {
+    position: relative;
     margin-top: 18px;
     display: flex;
     flex-direction: column;
@@ -99,6 +89,7 @@
     height: auto;
     outline: none;
     cursor: crosshair;
+    touch-action: manipulation;
   }
 
   #bm-canvas:focus-visible {
@@ -123,15 +114,53 @@
     font-style: normal;
   }
 
-  /* Touch: hide the trigger and game, show the fallback line. */
-  @media (hover: none) {
-    .bm-trigger,
-    .bm-canvas-wrap {
-      display: none !important;
-    }
-    .bm-touch-fallback {
-      display: block;
-    }
+  .bm-gameover {
+    position: absolute;
+    inset: 0 0 auto 0;
+    /* Match the canvas footprint, not the wrap (which also contains help text). */
+    height: 300px;
+    max-height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    background: color-mix(in srgb, var(--bg-paper) 92%, transparent);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    border-radius: 2px;
+  }
+
+  .bm-gameover[hidden] {
+    display: none;
+  }
+
+  .bm-gameover-rally {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 28px;
+    font-weight: 500;
+    color: var(--accent);
+    margin: 0;
+  }
+
+  .bm-play-again {
+    font-family: var(--font-script);
+    font-size: 22px;
+    font-style: italic;
+    background: none;
+    border: none;
+    color: var(--accent);
+    cursor: pointer;
+    padding: 4px 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+    line-height: 1;
+  }
+
+  .bm-play-again:hover,
+  .bm-play-again:focus-visible {
+    border-bottom-color: var(--accent);
+    outline: none;
   }
 
   @media (max-width: 720px) {
@@ -139,206 +168,195 @@
       width: 100%;
       max-width: 360px;
     }
+    .bm-gameover {
+      width: 100%;
+      max-width: 360px;
+    }
   }
 </style>
 
 <script>
-  import { safeStorage } from "~/lib/safeStorage";
+  type Pt = { x: number; y: number };
+  type Phase = "bot-to-user" | "user-to-bot";
 
-  type Shuttle = { x: number; y: number; vx: number; vy: number; rot: number };
+  const trigger     = document.getElementById("bm-trigger");
+  const wrap        = document.getElementById("bm-canvas-wrap");
+  const canvas      = document.getElementById("bm-canvas") as HTMLCanvasElement | null;
+  const overlayEl   = document.getElementById("bm-gameover");
+  const finalRallyEl = document.getElementById("bm-final-rally");
+  const playAgainEl = document.getElementById("bm-play-again");
 
-  const trigger = document.getElementById("bm-trigger");
-  const wrap = document.getElementById("bm-canvas-wrap");
-  const canvas = document.getElementById("bm-canvas") as HTMLCanvasElement | null;
-
-  if (trigger && wrap && canvas) {
+  if (trigger && wrap && canvas && overlayEl && finalRallyEl && playAgainEl) {
     const ctx = canvas.getContext("2d")!;
     const W = canvas.width;
     const H = canvas.height;
+
+    // ---------- CONFIG ----------
+    const SWING_COOLDOWN_MS    = 500;
+    const HIT_WINDOW_MS        = 250;
+    const BOT_TO_USER_FLIGHT_MS = 1100;
+    const USER_TO_BOT_FLIGHT_MS = 1000;
+    const SPEED_RAMP           = 0.97;
+    const SWING_ANIM_MS        = 150;
+    const PEAK_HEIGHT_PX       = 80;   // arc apex above linear midpoint; clears net comfortably
+    const POST_MISS_TAIL_MS    = 80;   // visual tail after window closes before rally end
+
+    // ---------- geometry ----------
     const NET_X = W / 2;
     const FLOOR_Y = H - 20;
+    const PLAYER_X = 60;
+    const CPU_X    = W - 60;
+    const SHOULDER_Y = FLOOR_Y - 18;
+    const IDLE_ARM_ANGLE  = -Math.PI / 3.5;   // arm pointing up-and-out
+    const SWING_ARM_ANGLE = -Math.PI / 1.9;   // arm fully raised on peak swing
+    // Racket head positions (idle pose) — used as arc endpoints.
+    const userRacket: Pt = {
+      x: PLAYER_X + Math.cos(IDLE_ARM_ANGLE) * 16,
+      y: SHOULDER_Y + Math.sin(IDLE_ARM_ANGLE) * 16,
+    };
+    const botRacket: Pt = {
+      x: CPU_X    - Math.cos(IDLE_ARM_ANGLE) * 16,
+      y: SHOULDER_Y + Math.sin(IDLE_ARM_ANGLE) * 16,
+    };
 
-    // Fixed paddle circles. No movement, no lerp.
-    const PLAYER_X = 40;
-    const CPU_X = W - 40;
-    const CIRCLE_Y = FLOOR_Y - 24;
-    const CIRCLE_RADIUS = 14;
-    // CPU only swings once shuttle is descending and below this y.
-    const CPU_HIT_ZONE_TOP = H * 0.55;
-
-    // Theme colors sourced from CSS custom properties.
+    // ---------- theme colors (sourced from CSS custom properties) ----------
     const css = getComputedStyle(document.documentElement);
     const COLOR = {
       body:   css.getPropertyValue("--text-body").trim()     || "#1c1c1c",
       muted:  css.getPropertyValue("--text-muted").trim()    || "#9a9a98",
       accent: css.getPropertyValue("--accent").trim()        || "#7a0e20",
       paper:  css.getPropertyValue("--bg-paper").trim()      || "#f5eddd",
-      border: css.getPropertyValue("--border-subtle").trim() || "#d5d5d3",
     } as const;
 
-    // --- state ---
-    const shuttle: Shuttle = { x: PLAYER_X + 4, y: CIRCLE_Y - 2, vx: 0, vy: 0, rot: 0 };
+    // ---------- state ----------
+    let phase: Phase = "bot-to-user";
+    let phaseStartTime = 0;
+    let phaseDuration  = BOT_TO_USER_FLIGHT_MS;
     let rally = 0;
-    let bestRally = parseInt(safeStorage.get("wz-best-rally") ?? "0", 10) || 0;
-    let lastHitter: "player" | "cpu" = "cpu";
-    let cpuReacting = false;
-    let cpuReactionTimer = 0;
-    let playerHasHit = false;
-    let frozen = false;                              // shuttle parked at floor between rallies
-    let prevOnPlayerSide = true;                     // bug 5: detect side cross-back
-    let pendingServeTimer: number | null = null;     // bug 1: track + clear
-    let running = false;
-    let lastTime = 0;
+    let lastSwingTime  = -Infinity;
+    let userSwingStart = -Infinity;
+    let botSwingStart  = -Infinity;
+    let gameOver = false;
+    let running  = false;
+    let hiddenStart = 0;
 
-    // Caveat font may not be loaded at first paint; let it warm up.
+    // Caveat / Cormorant may still be loading; warm up.
     document.fonts?.ready?.catch(() => {});
 
-    // --- helpers ---
-    const rand = (a: number, b: number) => a + Math.random() * (b - a);
-    const clamp = (v: number, lo: number, hi: number) =>
-      Math.max(lo, Math.min(hi, v));
+    // ---------- helpers ----------
 
-    function shuttleOnPlayerSide(): boolean {
-      return shuttle.x < NET_X;
+    function arcPos(start: Pt, endPt: Pt, t: number): Pt {
+      const x = start.x + (endPt.x - start.x) * t;
+      const yLinear = start.y + (endPt.y - start.y) * t;
+      const yArc = -PEAK_HEIGHT_PX * 4 * t * (1 - t);
+      return { x, y: yLinear + yArc };
     }
 
-    function clearPendingServeTimer() {
-      if (pendingServeTimer !== null) {
-        clearTimeout(pendingServeTimer);
-        pendingServeTimer = null;
-      }
+    /**
+     * Bell curve, peaks at t = 0.5 with value 1.0. Returns 0 outside the
+     * animation window. Convention: caller sets swingStart = peakTime
+     * - SWING_ANIM_MS / 2 so the peak lines up with the intended moment.
+     */
+    function swingFor(start: number, now: number): number {
+      const elapsed = now - start;
+      if (elapsed < 0 || elapsed > SWING_ANIM_MS) return 0;
+      const t = elapsed / SWING_ANIM_MS;
+      return 4 * t * (1 - t);
     }
 
-    // --- game actions ---
+    function currentArc(): { start: Pt; endPt: Pt } {
+      return phase === "bot-to-user"
+        ? { start: botRacket,  endPt: userRacket }
+        : { start: userRacket, endPt: botRacket  };
+    }
 
-    function autoServe() {
-      // Shuttle starts at the user's circle position. Underhand serve forward.
-      shuttle.x = PLAYER_X + 4;
-      shuttle.y = CIRCLE_Y - 2;
-      shuttle.vx = rand(1.6, 2.0);
-      shuttle.vy = rand(-3.8, -3.2);
-      shuttle.rot = 0;
+    /** Rotation that keeps the cork (shuttle's +y axis in local coords) pointing in direction of motion. */
+    function shuttleRot(start: Pt, endPt: Pt, t: number): number {
+      const dx = endPt.x - start.x;
+      const dy = (endPt.y - start.y) - PEAK_HEIGHT_PX * 4 * (1 - 2 * t);
+      return Math.atan2(-dx, dy);
+    }
+
+    // ---------- game flow ----------
+
+    function startPhase(p: Phase) {
+      phase = p;
+      phaseStartTime = performance.now();
+      phaseDuration = (p === "bot-to-user" ? BOT_TO_USER_FLIGHT_MS : USER_TO_BOT_FLIGHT_MS)
+                    * Math.pow(SPEED_RAMP, rally);
+      // Bot swing for mid-rally returns is pre-scheduled in tick during
+      // the outgoing user-to-bot phase. The first serve (open / Play
+      // Again) is set up by startGame() below.
+    }
+
+    function startGame() {
       rally = 0;
-      playerHasHit = false;
-      cpuReacting = false;
-      cpuReactionTimer = 0;
-      lastHitter = "player";
-      frozen = false;
-      prevOnPlayerSide = true;
-    }
-
-    function attemptHit() {
-      if (frozen) return;
-      if (!shuttleOnPlayerSide()) return;
-      if (playerHasHit) return;
-
-      // No proximity check — entire player side is hittable.
-      const targetX = NET_X + rand(60, W - NET_X - 60);
-      const dxTarget = targetX - shuttle.x;
-      shuttle.vx = clamp(dxTarget / 50, 1.6, 3.0);
-      shuttle.vy = rand(-3.6, -2.8);
-      rally++;
-      lastHitter = "player";
-      playerHasHit = true;
-    }
-
-    function cpuReturn() {
-      // Flat miss probability with gentle rally-length scaling. Caps at 0.27.
-      const missProb = 0.12 + Math.min(rally * 0.003, 0.15);
-      if (Math.random() < missProb) return; // CPU misses, shuttle keeps falling
-      const targetX = rand(50, NET_X - 50);
-      const dxTarget = targetX - shuttle.x;
-      shuttle.vx = clamp(dxTarget / 50, -3.0, -1.6);
-      shuttle.vy = rand(-3.6, -2.8);
-      rally++;
-      lastHitter = "cpu";
-      // playerHasHit reset is handled by the side-transition check in tick().
+      gameOver = false;
+      overlayEl!.setAttribute("hidden", "");
+      finalRallyEl!.textContent = "0";
+      lastSwingTime  = -Infinity;
+      userSwingStart = -Infinity;
+      startPhase("bot-to-user");
+      // First-serve bot swing: peak at phase start (when shuttle leaves
+      // the bot's racket). The wind-up half of the bell curve technically
+      // starts 75ms before phase start — invisible since the loop hasn't
+      // begun rendering yet — so the visible motion is the peak-to-idle
+      // follow-through, which reads as "bot just struck the bird."
+      botSwingStart = phaseStartTime - SWING_ANIM_MS / 2;
+      canvas!.focus();
     }
 
     function endRally() {
-      if (rally > bestRally) {
-        bestRally = rally;
-        safeStorage.set("wz-best-rally", String(bestRally));
-      }
-      frozen = true;
-      shuttle.vx = 0;
-      shuttle.vy = 0;
-
-      // Bug 1: track the pending timer so close + reopen can cancel it.
-      pendingServeTimer = window.setTimeout(() => {
-        pendingServeTimer = null;
-        autoServe();
-      }, 800);
+      gameOver = true;
+      finalRallyEl!.textContent = String(rally);
+      overlayEl!.removeAttribute("hidden");
+      playAgainEl!.focus();
     }
 
-    // --- physics + AI ---
+    function attemptSwing() {
+      if (!running || gameOver) return;
+      const now = performance.now();
+      if (now - lastSwingTime < SWING_COOLDOWN_MS) return; // silent ignore (no animation)
+      lastSwingTime = now;
+      userSwingStart = now - SWING_ANIM_MS / 2;            // bell-curve peak at input time
 
-    function tick(dt: number) {
-      if (frozen) return; // skip physics + AI while parked
+      if (phase !== "bot-to-user") return;                 // not the user's turn — animation only
+      const elapsed = now - phaseStartTime;
+      const inWindow = Math.abs(elapsed - phaseDuration) <= HIT_WINDOW_MS / 2;
+      if (!inWindow) return;                               // out of window — animation only
 
-      // physics
-      shuttle.vy += 0.10 * dt; // gravity
-      shuttle.vx *= 0.997;
-      shuttle.x += shuttle.vx * dt;
-      shuttle.y += shuttle.vy * dt;
-      shuttle.rot = shuttle.vx * 0.045;
+      rally++;
+      startPhase("user-to-bot");
+    }
 
-      // Bug 5: detect shuttle returning to player side from CPU side.
-      // Reset playerHasHit so wall-bounces / CPU misses don't trap the
-      // player in an unhittable state when shuttle re-enters their side.
-      const onPlayerSide = shuttleOnPlayerSide();
-      if (!prevOnPlayerSide && onPlayerSide) {
-        playerHasHit = false;
-      }
-      prevOnPlayerSide = onPlayerSide;
+    // ---------- tick ----------
 
-      // CPU AI: schedule a swing once the shuttle enters CPU's hit zone.
-      const onCpuSide = shuttle.x >= NET_X;
-      const inCpuHitZone =
-        onCpuSide && shuttle.vy >= 0 && shuttle.y > CPU_HIT_ZONE_TOP;
-      if (inCpuHitZone && lastHitter === "player" && !cpuReacting) {
-        cpuReacting = true;
-        cpuReactionTimer = Math.floor(rand(8, 22));
-      }
+    function tick(now: number) {
+      if (gameOver) return;
+      const elapsed = now - phaseStartTime;
+      const t = elapsed / phaseDuration;
 
-      if (cpuReacting) {
-        cpuReactionTimer -= dt;
-        if (cpuReactionTimer <= 0) {
-          cpuReacting = false;
-          const stillInZone =
-            shuttle.x >= NET_X &&
-            shuttle.vy >= 0 &&
-            shuttle.y > CPU_HIT_ZONE_TOP &&
-            shuttle.y < FLOOR_Y;
-          if (stillInZone) cpuReturn();
+      if (phase === "user-to-bot") {
+        // Bot swing scheduling: peak (start + SWING_ANIM_MS / 2) lines
+        // up with contact at t = 1. Fires once per phase via the
+        // `botSwingStart < phaseStartTime` guard.
+        if (botSwingStart < phaseStartTime
+            && elapsed > phaseDuration - SWING_ANIM_MS / 2) {
+          botSwingStart = now;
+        }
+        if (t >= 1) {
+          startPhase("bot-to-user");                       // bot auto-hits and serves back
+          return;
+        }
+      } else {
+        // bot-to-user: rally ends if shuttle passes user without a hit.
+        if (elapsed > phaseDuration + HIT_WINDOW_MS / 2 + POST_MISS_TAIL_MS) {
+          endRally();
         }
       }
-
-      // Floor — end rally
-      if (shuttle.y >= FLOOR_Y) {
-        endRally();
-        shuttle.y = FLOOR_Y;
-        shuttle.vx = 0;
-        shuttle.vy = 0;
-        return;
-      }
-
-      // Walls (mostly cosmetic — physics keep shuttle in canvas).
-      if (shuttle.x < 6) {
-        shuttle.x = 6;
-        shuttle.vx = Math.abs(shuttle.vx) * 0.5;
-      }
-      if (shuttle.x > W - 6) {
-        shuttle.x = W - 6;
-        shuttle.vx = -Math.abs(shuttle.vx) * 0.5;
-      }
-      if (shuttle.y < 6) {
-        shuttle.y = 6;
-        shuttle.vy = Math.abs(shuttle.vy) * 0.5;
-      }
     }
 
-    // --- drawing ---
+    // ---------- drawing ----------
 
     function drawCourtLine() {
       ctx.save();
@@ -372,32 +390,74 @@
       ctx.restore();
     }
 
-    function drawCircle(x: number, isCpu: boolean) {
+    function drawStickFigure(x: number, label: string | null, swing: number) {
+      const baseY = FLOOR_Y;
       ctx.save();
-      ctx.fillStyle = isCpu ? COLOR.accent : COLOR.body;
+      ctx.strokeStyle = COLOR.body;
+      ctx.fillStyle = COLOR.body;
+      ctx.lineWidth = 1.4;
+      ctx.lineCap = "round";
+
+      // head
       ctx.beginPath();
-      ctx.arc(x, CIRCLE_Y, CIRCLE_RADIUS, 0, Math.PI * 2);
+      ctx.arc(x, baseY - 26, 4, 0, Math.PI * 2);
       ctx.fill();
-      if (isCpu) {
-        ctx.fillStyle = COLOR.paper;
-        ctx.font = "600 italic 16px 'Cormorant Garamond', Georgia, serif";
+
+      // body
+      ctx.beginPath();
+      ctx.moveTo(x, baseY - 22);
+      ctx.lineTo(x, baseY - 8);
+      ctx.stroke();
+
+      // legs (slight V stance)
+      ctx.beginPath();
+      ctx.moveTo(x, baseY - 8);
+      ctx.lineTo(x - 4, baseY);
+      ctx.moveTo(x, baseY - 8);
+      ctx.lineTo(x + 4, baseY);
+      ctx.stroke();
+
+      // racket arm — angle pivots up on swing (mirrored for the bot).
+      const isBot = label !== null;
+      const idleA  = isBot ? Math.PI - IDLE_ARM_ANGLE  : IDLE_ARM_ANGLE;
+      const swingA = isBot ? Math.PI - SWING_ARM_ANGLE : SWING_ARM_ANGLE;
+      const armAngle = idleA + (swingA - idleA) * swing;
+      const handX = x + Math.cos(armAngle) * 10;
+      const handY = SHOULDER_Y + Math.sin(armAngle) * 10;
+      ctx.beginPath();
+      ctx.moveTo(x, SHOULDER_Y);
+      ctx.lineTo(handX, handY);
+      // racket head — short stroke past the hand
+      ctx.moveTo(handX, handY);
+      ctx.lineTo(handX + Math.cos(armAngle) * 6, handY + Math.sin(armAngle) * 6);
+      ctx.stroke();
+
+      if (label) {
+        ctx.fillStyle = COLOR.accent;
+        ctx.font = "600 italic 16px Caveat, cursive";
         ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText("W", x, CIRCLE_Y);
+        ctx.textBaseline = "alphabetic";
+        ctx.fillText(label, x, baseY - 36);
       }
       ctx.restore();
     }
 
-    function drawShuttle() {
+    function drawShuttle(now: number) {
+      const { start, endPt } = currentArc();
+      const elapsed = now - phaseStartTime;
+      const t = Math.max(0, elapsed / phaseDuration);
+      const pos = arcPos(start, endPt, t);
+      const rot = shuttleRot(start, endPt, t);
+
       ctx.save();
-      ctx.translate(shuttle.x, shuttle.y);
-      ctx.rotate(shuttle.rot);
+      ctx.translate(pos.x, pos.y);
+      ctx.rotate(rot);
       ctx.strokeStyle = COLOR.body;
       ctx.lineWidth = 1.2;
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
       ctx.beginPath();
-      // feathers fanning up from cork at +y
+      // feathers fanning up from cork at +y (cork = forward in flight)
       for (let i = -2; i <= 2; i++) {
         ctx.moveTo(0, 4);
         ctx.lineTo(i * 2.4, -7);
@@ -410,84 +470,97 @@
       ctx.restore();
     }
 
-    function drawCounters() {
+    function drawCounter() {
       ctx.save();
       ctx.fillStyle = COLOR.accent;
       ctx.font = "500 italic 19px Caveat, cursive";
       ctx.textBaseline = "top";
       ctx.textAlign = "left";
       ctx.fillText(`rally: ${rally}`, 14, 12);
-
-      ctx.fillStyle = COLOR.muted;
-      ctx.font = "500 italic 14px Caveat, cursive";
-      ctx.textAlign = "right";
-      ctx.fillText(`longest: ${bestRally}`, W - 14, 14);
       ctx.restore();
     }
 
-    function draw() {
+    function draw(now: number) {
       ctx.clearRect(0, 0, W, H);
       drawCourtLine();
       drawNet();
-      drawShuttle();
-      drawCircle(PLAYER_X, false);
-      drawCircle(CPU_X, true);
-      drawCounters();
+      drawShuttle(now);
+      drawStickFigure(PLAYER_X, null, swingFor(userSwingStart, now));
+      drawStickFigure(CPU_X,    "W",  swingFor(botSwingStart,  now));
+      drawCounter();
     }
 
-    function loop(t: number) {
+    function loop(now: number) {
       if (!running) return;
-      const dt = lastTime ? Math.min(2, (t - lastTime) / 16.67) : 1;
-      lastTime = t;
-      tick(dt);
-      draw();
+      tick(now);
+      draw(now);
       requestAnimationFrame(loop);
     }
 
-    // --- input ---
+    // ---------- input ----------
 
-    // Bug 6: only intercept space when the canvas is focused. Otherwise
-    // let the browser scroll the page like normal. Canvas gets focus on
-    // open via canvas.focus(); clicking elsewhere blurs and frees up space.
     function onSpace(e: KeyboardEvent) {
       if (!running) return;
       if (e.code !== "Space" && e.key !== " ") return;
       if (document.activeElement !== canvas) return;
       e.preventDefault();
-      attemptHit();
+      attemptSwing();
     }
 
     function onClick() {
-      if (!running) return;
-      attemptHit();
+      attemptSwing();
     }
 
-    // --- toggle ---
+    function onTouchStart(e: TouchEvent) {
+      e.preventDefault();
+      attemptSwing();
+    }
+
+    // ---------- visibility (tab-away handling) ----------
+
+    function onVisibilityChange() {
+      if (!running || gameOver) return;
+      if (document.hidden) {
+        hiddenStart = performance.now();
+      } else {
+        const offset = performance.now() - hiddenStart;
+        phaseStartTime += offset;
+        if (lastSwingTime  > -Infinity) lastSwingTime  += offset;
+        if (userSwingStart > -Infinity) userSwingStart += offset;
+        if (botSwingStart  > -Infinity) botSwingStart  += offset;
+      }
+    }
+
+    // ---------- toggle + Play Again ----------
+
+    playAgainEl.addEventListener("click", (e) => {
+      e.stopPropagation();
+      startGame();
+    });
 
     trigger.addEventListener("click", () => {
-      const open = wrap.hasAttribute("hidden") === false;
-      if (open) {
+      const isOpen = wrap.hasAttribute("hidden") === false;
+      if (isOpen) {
         // Close
         wrap.setAttribute("hidden", "");
         trigger.setAttribute("aria-expanded", "false");
         running = false;
+        gameOver = false;
+        overlayEl.setAttribute("hidden", "");
         window.removeEventListener("keydown", onSpace);
-        canvas.removeEventListener("click", onClick); // bug 2
-        clearPendingServeTimer();                     // bug 1
+        canvas.removeEventListener("click", onClick);
+        canvas.removeEventListener("touchstart", onTouchStart);
+        document.removeEventListener("visibilitychange", onVisibilityChange);
       } else {
         // Open — fresh game
         wrap.removeAttribute("hidden");
         trigger.setAttribute("aria-expanded", "true");
-        clearPendingServeTimer();                     // bug 1 (also on reopen)
-        rally = 0;
-        playerHasHit = false;
-        frozen = false;
-        autoServe();
         running = true;
-        lastTime = 0;
-        canvas.focus();
         window.addEventListener("keydown", onSpace);
         canvas.addEventListener("click", onClick);
+        canvas.addEventListener("touchstart", onTouchStart, { passive: false });
+        document.addEventListener("visibilitychange", onVisibilityChange);
+        startGame();
         requestAnimationFrame(loop);
       }
     });
