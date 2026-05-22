@@ -1,22 +1,26 @@
 ---
 /**
- * BadmintonGame — swing polish (v1.7.6).
+ * BadmintonGame — countdown intro + identifier swap (v1.7.7).
  *
- * Builds on v1.7.4's deterministic timing game and v1.7.5's beautification:
+ * Builds on v1.7.6's swing polish:
  *   - Visible racket heads (oval + cross-string) on both figures
- *   - 3-phase swing: WINDUP (cock back) -> STRIKE (whip forward) -> FOLLOW
- *     (decelerate). Multi-stage swingState() drives arm + lean + foot-lift.
- *   - Body leans back during windup, forward through the strike, recovers
- *     in follow-through. Back foot lifts during peak. Arm extends 2px at
- *     peak. Head dips slightly on strike.
- *   - 2-ghost racket motion-blur trail during the strike phase.
- *   - User-only floor stage-arc as the "you" identifier (no head accessories
- *     on either figure).
- *   - Hit-flash ring at the racket on contact (200ms expand+fade).
- *   - Bot occasionally pops a Caveat-italic phrase after a return.
+ *   - 3-phase swing: WINDUP -> STRIKE -> FOLLOW with body lean, back-foot
+ *     lift, arm extension, head dip, and a 2-ghost racket motion-blur trail
+ *   - Hit-flash ring at the racket on contact
+ *   - Bot occasionally pops a Caveat-italic phrase after a return
  *   - On miss, shuttle continues past the racket and lands on the floor;
- *     rests there ~700ms before the game-over overlay fades in.
- *   - "best: N" counter top-right via safeStorage persistence.
+ *     rests there ~700ms before the game-over overlay fades in
+ *
+ * v1.7.7 changes:
+ *   - "best: N" counter no longer persists across page reloads (in-memory
+ *     only; resets to 0 each session).
+ *   - Floor stage-arc under the user removed.
+ *   - Intro / countdown sequence: when the canvas opens or Play Again is
+ *     clicked, the bot speaks "are u ready??" -> "3" -> "2" -> "1" before
+ *     serving. Identifies the bot as the right figure (and the player as
+ *     the left by elimination) without any text labels on the figures.
+ *   - User figure drawn in a slightly warmer dark (#2C1A1E) vs the bot's
+ *     pure body color (#1C1C1C) for subtle "this one is you" differentiation.
  *
  * Mobile: tap-to-swing still works (touch-action: manipulation + touchstart).
  */
@@ -179,8 +183,6 @@
 </style>
 
 <script>
-  import { safeStorage } from "~/lib/safeStorage";
-
   type Pt = { x: number; y: number };
   type Phase = "bot-to-user" | "user-to-bot";
   type HitFlash = { x: number; y: number; born: number };
@@ -240,12 +242,16 @@
       paper:  css.getPropertyValue("--bg-paper").trim()      || "#f5eddd",
     } as const;
 
+    // User (left figure) drawn in a slightly warmer tint than the bot,
+    // a subtle "this one is you" identifier without text or accessories.
+    const USER_COLOR = "#2C1A1E";
+
     // ---------- state ----------
     let phase: Phase = "bot-to-user";
     let phaseStartTime = 0;
     let phaseDuration  = BOT_TO_USER_FLIGHT_MS;
     let rally = 0;
-    let bestRally = parseInt(safeStorage.get("wz-best-rally") ?? "0", 10) || 0;
+    let bestRally = 0;                       // resets every page reload (no localStorage)
     let lastSwingTime  = -Infinity;
     let userSwingStart = -Infinity;
     let botSwingStart  = -Infinity;
@@ -261,6 +267,18 @@
     // Effects
     let hitFlashes: HitFlash[] = [];
     let bubble: Bubble | null = null;
+
+    // Intro / countdown — bot speaks the opening so the player knows the
+    // bot is the right figure (and themselves are the left by elimination).
+    let introActive = false;
+    let introStart = 0;
+    const INTRO_SEGMENTS = [
+      { text: "are u ready??", end: 1000 },
+      { text: "3", end: 1500 },
+      { text: "2", end: 2000 },
+      { text: "1", end: 2500 },
+    ];
+    const INTRO_DURATION_MS = INTRO_SEGMENTS[INTRO_SEGMENTS.length - 1].end;
 
     const bubblePool = [
       "keep it up", "nice", "huh", "real?", "ok ok",
@@ -362,22 +380,28 @@
       finalRallyEl!.textContent = "0";
       lastSwingTime  = -Infinity;
       userSwingStart = -Infinity;
+      botSwingStart  = -Infinity;        // bot stays idle through the intro
       hitFlashes = [];
       bubble = null;
       landingPhase = false;
       landedAt = 0;
       landedX = 0;
-      startPhase("bot-to-user");
-      // First-serve bot swing: peak at phase start.
-      botSwingStart = phaseStartTime - SWING_ANIM_MS / 2;
+      // Enter the intro / countdown state. The phase + first-serve swing
+      // are kicked off in endIntro() once the countdown finishes.
+      introActive = true;
+      introStart = performance.now();
       canvas!.focus();
     }
 
+    function endIntro() {
+      introActive = false;
+      startPhase("bot-to-user");
+      // First-serve bot swing: peak at phase start.
+      botSwingStart = phaseStartTime - SWING_ANIM_MS / 2;
+    }
+
     function endRally() {
-      if (rally > bestRally) {
-        bestRally = rally;
-        safeStorage.set("wz-best-rally", String(bestRally));
-      }
+      if (rally > bestRally) bestRally = rally;
       gameOver = true;
       finalRallyEl!.textContent = String(rally);
       overlayEl!.removeAttribute("hidden");
@@ -385,7 +409,7 @@
     }
 
     function attemptSwing() {
-      if (!running || gameOver) return;
+      if (!running || gameOver || introActive) return;
       const now = performance.now();
       if (now - lastSwingTime < SWING_COOLDOWN_MS) return;
       lastSwingTime = now;
@@ -405,6 +429,10 @@
 
     function tick(now: number) {
       if (gameOver) return;
+      if (introActive) {
+        if (now - introStart > INTRO_DURATION_MS) endIntro();
+        return;
+      }
       const elapsed = now - phaseStartTime;
       const t = elapsed / phaseDuration;
 
@@ -473,14 +501,14 @@
       ctx.restore();
     }
 
-    function drawRacket(handX: number, handY: number, armAngle: number) {
+    function drawRacket(handX: number, handY: number, armAngle: number, color: string = COLOR.body) {
       const headLen = 12;
       const cx = handX + Math.cos(armAngle) * (headLen / 2);
       const cy = handY + Math.sin(armAngle) * (headLen / 2);
       ctx.save();
       ctx.translate(cx, cy);
       ctx.rotate(armAngle + Math.PI / 2);
-      ctx.strokeStyle = COLOR.body;
+      ctx.strokeStyle = color;
       ctx.lineWidth = 1.1;
       ctx.beginPath();
       ctx.ellipse(0, 0, 3.5, 6, 0, 0, Math.PI * 2);
@@ -488,22 +516,6 @@
       ctx.lineWidth = 0.5;
       ctx.beginPath();
       ctx.moveTo(-3.5, 0); ctx.lineTo(3.5, 0);
-      ctx.stroke();
-      ctx.restore();
-    }
-
-    /**
-     * Subtle floor stage-arc under the user only — a faint half-ellipse on
-     * the floor that reads as a small spotlight mark. Persistent identifier
-     * for "this is the figure you control" without text or head decoration.
-     */
-    function drawStageArc(x: number) {
-      ctx.save();
-      ctx.strokeStyle = COLOR.muted;
-      ctx.globalAlpha = 0.45;
-      ctx.lineWidth = 1.0;
-      ctx.beginPath();
-      ctx.ellipse(x, FLOOR_Y + 1, 11, 2.5, 0, 0, Math.PI, false);
       ctx.stroke();
       ctx.restore();
     }
@@ -529,7 +541,13 @@
      * past state had a non-positive arm value (windup or pre-strike) so
      * we don't draw stray rackets behind the head.
      */
-    function ghostRacketAt(pastT: number, x: number, isBot: boolean, alpha: number) {
+    function ghostRacketAt(
+      pastT: number,
+      x: number,
+      isBot: boolean,
+      alpha: number,
+      color: string,
+    ) {
       const ps = swingStateAtT(pastT);
       if (ps.arm <= 0) return;
       const direction = isBot ? -1 : 1;
@@ -540,7 +558,7 @@
       const hy = SHOULDER_Y + Math.sin(armA) * armLen;
       ctx.save();
       ctx.globalAlpha = alpha;
-      drawRacket(hx, hy, armA);
+      drawRacket(hx, hy, armA, color);
       ctx.restore();
     }
 
@@ -559,10 +577,11 @@
       const upperDip = headDip * 0.7;                    // body top tracks head ~70%
       const armAngle = armAngleFor(s.arm, isBot);
       const armLen = 10 + Math.max(0, s.arm) * 2;        // arm extends at peak
+      const figColor = isBot ? COLOR.body : USER_COLOR;  // user runs warmer
 
       ctx.save();
-      ctx.strokeStyle = COLOR.body;
-      ctx.fillStyle = COLOR.body;
+      ctx.strokeStyle = figColor;
+      ctx.fillStyle = figColor;
       ctx.lineWidth = 1.4;
       ctx.lineCap = "round";
 
@@ -601,30 +620,38 @@
       // racket so the current frame paints on top
       if (s.arm > 0.3) {
         const elapsedMs = now - swingStart;
-        ghostRacketAt((elapsedMs - 25) / SWING_ANIM_MS, x, isBot, 0.30);
-        ghostRacketAt((elapsedMs - 50) / SWING_ANIM_MS, x, isBot, 0.15);
+        ghostRacketAt((elapsedMs - 25) / SWING_ANIM_MS, x, isBot, 0.30, figColor);
+        ghostRacketAt((elapsedMs - 50) / SWING_ANIM_MS, x, isBot, 0.15, figColor);
       }
 
       // primary racket head
-      drawRacket(handX, handY, armAngle);
+      drawRacket(handX, handY, armAngle, figColor);
 
       ctx.restore();
     }
 
     function drawShuttle(now: number) {
-      const { start, endPt } = currentArc();
-      const elapsed = now - phaseStartTime;
-      const t = Math.max(0, elapsed / phaseDuration);
-      let pos = arcPos(start, endPt, t);
-      let rot = shuttleRot(start, endPt, t);
+      let pos: Pt;
+      let rot: number;
 
-      // After landing, freeze shuttle on the floor at landed position.
-      if (landedAt > 0) {
-        pos = { x: landedX, y: FLOOR_Y };
-        rot = Math.PI / 2; // sideways on floor (cork pointing in arc direction)
-        // Actually use last computed rotation pre-landing — keep shuttle's
-        // "lying down" look. For simplicity, use sideways relative to flight.
-        rot = phase === "bot-to-user" ? Math.PI / 2 : -Math.PI / 2;
+      if (introActive) {
+        // Bot is "holding" the shuttle, ready to serve. Park at bot's racket
+        // and orient it as it would be at t=0 of the upcoming bot-to-user
+        // arc, so the launch transition is seamless.
+        pos = { x: botRacket.x, y: botRacket.y };
+        rot = shuttleRot(botRacket, userRacket, 0);
+      } else {
+        const { start, endPt } = currentArc();
+        const elapsed = now - phaseStartTime;
+        const t = Math.max(0, elapsed / phaseDuration);
+        pos = arcPos(start, endPt, t);
+        rot = shuttleRot(start, endPt, t);
+
+        // After landing, freeze shuttle on the floor at landed position.
+        if (landedAt > 0) {
+          pos = { x: landedX, y: FLOOR_Y };
+          rot = phase === "bot-to-user" ? Math.PI / 2 : -Math.PI / 2;
+        }
       }
 
       ctx.save();
@@ -698,16 +725,55 @@
       ctx.restore();
     }
 
+    /**
+     * Pre-game countdown spoken from the bot's side. Shows one segment at
+     * a time, in-out fading, slightly bigger font for the opening line so
+     * "are u ready??" reads as the bot talking.
+     */
+    function drawIntroText(now: number) {
+      if (!introActive) return;
+      const elapsed = now - introStart;
+      let segment: typeof INTRO_SEGMENTS[number] | null = null;
+      let segStart = 0;
+      let prevEnd = 0;
+      for (const seg of INTRO_SEGMENTS) {
+        if (elapsed < seg.end) {
+          segment = seg;
+          segStart = prevEnd;
+          break;
+        }
+        prevEnd = seg.end;
+      }
+      if (!segment) return;
+
+      const segDur = segment.end - segStart;
+      const segElapsed = elapsed - segStart;
+      const fadeIn = Math.min(1, segElapsed / 120);
+      const fadeOut = Math.min(1, (segDur - segElapsed) / 220);
+      const isOpener = segment.text.startsWith("are u");
+
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, Math.min(fadeIn, fadeOut));
+      ctx.fillStyle = COLOR.accent;
+      ctx.font = isOpener
+        ? "500 italic 22px Caveat, cursive"
+        : "600 italic 30px Caveat, cursive";
+      ctx.textAlign = "right";
+      ctx.textBaseline = "alphabetic";
+      ctx.fillText(segment.text, CPU_X - 10, FLOOR_Y - 56);
+      ctx.restore();
+    }
+
     function draw(now: number) {
       ctx.clearRect(0, 0, W, H);
       drawCourtLine();
       drawNet();
-      drawStageArc(PLAYER_X);                                        // user-only stage mark
       drawShuttle(now);
       drawHitFlashes(now);
       drawStickFigure(PLAYER_X, false, userSwingStart, now);
       drawStickFigure(CPU_X,    true,  botSwingStart,  now);
       drawBubble(now);
+      drawIntroText(now);
       drawCounter();
     }
 
@@ -750,6 +816,7 @@
         if (userSwingStart > -Infinity) userSwingStart += offset;
         if (botSwingStart  > -Infinity) botSwingStart  += offset;
         if (landedAt > 0) landedAt += offset;
+        if (introActive) introStart += offset;
         for (const f of hitFlashes) f.born += offset;
         if (bubble) bubble.born += offset;
       }
@@ -769,6 +836,7 @@
         trigger.setAttribute("aria-expanded", "false");
         running = false;
         gameOver = false;
+        introActive = false;
         overlayEl.setAttribute("hidden", "");
         window.removeEventListener("keydown", onSpace);
         canvas.removeEventListener("click", onClick);
