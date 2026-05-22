@@ -760,7 +760,9 @@
         : "600 italic 30px Caveat, cursive";
       ctx.textAlign = "right";
       ctx.textBaseline = "alphabetic";
-      ctx.fillText(segment.text, CPU_X - 10, FLOOR_Y - 56);
+      // Sit clearly above the net top (FLOOR_Y - 64) so the larger
+      // countdown numbers (30px) don't crash into the net strings.
+      ctx.fillText(segment.text, CPU_X - 10, FLOOR_Y - 80);
       ctx.restore();
     }
 
