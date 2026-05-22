@@ -79,8 +79,8 @@ const socials = [
 
 <style>
   .site-footer {
-    margin-top: 40px;
-    padding-top: 20px;
+    margin-top: 24px;
+    padding-top: 12px;
     border-top: 1px dashed color-mix(in srgb, var(--border-subtle) 70%, transparent);
     display: flex;
     justify-content: space-between;
@@ -152,6 +152,15 @@ const socials = [
     line-height: 1;
     letter-spacing: 0.02em;
     color: var(--text-muted);
+  }
+
+  /* Short laptop viewports: tighter footer top margin so the socials
+     stay visible above the fold on the about page. */
+  @media (min-width: 721px) and (max-height: 880px) {
+    .site-footer {
+      margin-top: 16px;
+      padding-top: 8px;
+    }
   }
 
   /* Mobile: stack socials above signature, signature stays bottom-most. */
