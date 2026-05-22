@@ -1,16 +1,22 @@
 ---
 /**
- * BadmintonGame — beautification pass (v1.7.5).
+ * BadmintonGame — swing polish (v1.7.6).
  *
- * Builds on v1.7.4's deterministic timing game:
- *   - Both stick figures get visible racket heads (oval + cross-string)
- *   - Body lean during peak swing (forward toward strike)
- *   - Hit-flash ring on contact (200ms expand+fade)
- *   - Bot has a hair tuft on top of head (replaces W badge)
- *   - Bot occasionally pops a Caveat-italic phrase after a return
+ * Builds on v1.7.4's deterministic timing game and v1.7.5's beautification:
+ *   - Visible racket heads (oval + cross-string) on both figures
+ *   - 3-phase swing: WINDUP (cock back) -> STRIKE (whip forward) -> FOLLOW
+ *     (decelerate). Multi-stage swingState() drives arm + lean + foot-lift.
+ *   - Body leans back during windup, forward through the strike, recovers
+ *     in follow-through. Back foot lifts during peak. Arm extends 2px at
+ *     peak. Head dips slightly on strike.
+ *   - 2-ghost racket motion-blur trail during the strike phase.
+ *   - User-only floor stage-arc as the "you" identifier (no head accessories
+ *     on either figure).
+ *   - Hit-flash ring at the racket on contact (200ms expand+fade).
+ *   - Bot occasionally pops a Caveat-italic phrase after a return.
  *   - On miss, shuttle continues past the racket and lands on the floor;
- *     rests there ~700ms before the game-over overlay fades in
- *   - "best: N" counter top-right via safeStorage persistence
+ *     rests there ~700ms before the game-over overlay fades in.
+ *   - "best: N" counter top-right via safeStorage persistence.
  *
  * Mobile: tap-to-swing still works (touch-action: manipulation + touchstart).
  */
@@ -273,11 +279,47 @@
       return { x, y: yLinear + yArc };
     }
 
-    function swingFor(start: number, now: number): number {
-      const elapsed = now - start;
-      if (elapsed < 0 || elapsed > SWING_ANIM_MS) return 0;
-      const t = elapsed / SWING_ANIM_MS;
-      return 4 * t * (1 - t);
+    /**
+     * Multi-stage swing state. Returns three components at normalized t:
+     *   arm  in [-0.4, 1.0]  — -0.4 = fully cocked back, 1.0 = peak forward, 0 = idle
+     *   lean in [-3, 7]     — px; negative = lean back, positive = lean forward
+     *   foot in [0, 3]      — px; back-foot lift during the strike phase
+     *
+     * Three phases:
+     *   WINDUP (0-35%): smoothstep into wound-back position
+     *   STRIKE (35-50%): ease-in (accelerate) from windup to peak
+     *   FOLLOW (50-100%): ease-out (decelerate) back to idle
+     *
+     * Peak (arm=1) lands at t=0.5, i.e. swingStart + SWING_ANIM_MS / 2 — same
+     * calling convention as the v1.7.5 bell curve. So userSwingStart = now -
+     * SWING_ANIM_MS/2 still puts the visible peak at the input moment.
+     */
+    type SwingState = { arm: number; lean: number; foot: number };
+
+    function swingStateAtT(t: number): SwingState {
+      if (t < 0 || t > 1) return { arm: 0, lean: 0, foot: 0 };
+
+      if (t < 0.35) {
+        const k = t / 0.35;
+        const e = k * k * (3 - 2 * k);                 // smoothstep
+        return { arm: -0.4 * e, lean: -3 * e, foot: 1.5 * e };
+      }
+      if (t < 0.5) {
+        const k = (t - 0.35) / 0.15;
+        const e = k * k;                                // ease-in
+        return {
+          arm: -0.4 + 1.4 * e,
+          lean: -3 + 10 * e,
+          foot: 1.5 + 1.5 * e,
+        };
+      }
+      const k = (t - 0.5) / 0.5;
+      const e = 1 - (1 - k) * (1 - k);                  // ease-out
+      return { arm: 1 - e, lean: 7 * (1 - e), foot: 3 * (1 - e) };
+    }
+
+    function swingState(start: number, now: number): SwingState {
+      return swingStateAtT((now - start) / SWING_ANIM_MS);
     }
 
     function currentArc(): { start: Pt; endPt: Pt } {
@@ -450,9 +492,73 @@
       ctx.restore();
     }
 
-    function drawStickFigure(x: number, isBot: boolean, swing: number) {
+    /**
+     * Subtle floor stage-arc under the user only — a faint half-ellipse on
+     * the floor that reads as a small spotlight mark. Persistent identifier
+     * for "this is the figure you control" without text or head decoration.
+     */
+    function drawStageArc(x: number) {
+      ctx.save();
+      ctx.strokeStyle = COLOR.muted;
+      ctx.globalAlpha = 0.45;
+      ctx.lineWidth = 1.0;
+      ctx.beginPath();
+      ctx.ellipse(x, FLOOR_Y + 1, 11, 2.5, 0, 0, Math.PI, false);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    /**
+     * Compute the arm angle at a swing-arm value:
+     *   arm in [0, 1]   → lerp idle → peak (forward strike)
+     *   arm in [-0.4, 0)→ lerp idle → back (cocked behind head)
+     */
+    function armAngleFor(armSwing: number, isBot: boolean): number {
+      const direction = isBot ? -1 : 1;
+      const idleA = isBot ? Math.PI - IDLE_ARM_ANGLE  : IDLE_ARM_ANGLE;
+      const peakA = isBot ? Math.PI - SWING_ARM_ANGLE : SWING_ARM_ANGLE;
+      const backA = idleA + (Math.PI / 4) * direction;
+      return armSwing >= 0
+        ? idleA + (peakA - idleA) * armSwing
+        : idleA + (backA - idleA) * (-armSwing / 0.4);
+    }
+
+    /**
+     * Draw a single ghost racket at a past swing-state, used during the
+     * peak strike to create a motion-blur trail. Short-circuits if the
+     * past state had a non-positive arm value (windup or pre-strike) so
+     * we don't draw stray rackets behind the head.
+     */
+    function ghostRacketAt(pastT: number, x: number, isBot: boolean, alpha: number) {
+      const ps = swingStateAtT(pastT);
+      if (ps.arm <= 0) return;
+      const direction = isBot ? -1 : 1;
+      const armA = armAngleFor(ps.arm, isBot);
+      const armLen = 10 + ps.arm * 2;
+      const sx = x + ps.lean * direction;
+      const hx = sx + Math.cos(armA) * armLen;
+      const hy = SHOULDER_Y + Math.sin(armA) * armLen;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      drawRacket(hx, hy, armA);
+      ctx.restore();
+    }
+
+    function drawStickFigure(
+      x: number,
+      isBot: boolean,
+      swingStart: number,
+      now: number,
+    ) {
       const baseY = FLOOR_Y;
-      const leanX = swing * 5 * (isBot ? -1 : 1);
+      const s = swingState(swingStart, now);
+      const direction = isBot ? -1 : 1;
+      const leanX = s.lean * direction;
+      const footLift = s.foot;
+      const headDip = Math.max(0, s.arm) * 1.5;          // strike-only dip
+      const upperDip = headDip * 0.7;                    // body top tracks head ~70%
+      const armAngle = armAngleFor(s.arm, isBot);
+      const armLen = 10 + Math.max(0, s.arm) * 2;        // arm extends at peak
 
       ctx.save();
       ctx.strokeStyle = COLOR.body;
@@ -460,52 +566,46 @@
       ctx.lineWidth = 1.4;
       ctx.lineCap = "round";
 
-      // head (leaned)
+      // head — leaned + dipped during strike
       ctx.beginPath();
-      ctx.arc(x + leanX, baseY - 26, 4, 0, Math.PI * 2);
+      ctx.arc(x + leanX, baseY - 26 + headDip, 4, 0, Math.PI * 2);
       ctx.fill();
 
-      // hair tuft on bot — three short upward strokes
-      if (isBot) {
-        ctx.lineWidth = 1.1;
-        ctx.beginPath();
-        ctx.moveTo(x + leanX - 3, baseY - 30);
-        ctx.lineTo(x + leanX - 2, baseY - 33);
-        ctx.moveTo(x + leanX,     baseY - 30);
-        ctx.lineTo(x + leanX,     baseY - 34);
-        ctx.moveTo(x + leanX + 3, baseY - 30);
-        ctx.lineTo(x + leanX + 2, baseY - 33);
-        ctx.stroke();
-        ctx.lineWidth = 1.4;
-      }
-
-      // body — leaned shoulder down to fixed pelvis
+      // body — leaned-and-slightly-dipped shoulder down to fixed pelvis
       ctx.beginPath();
-      ctx.moveTo(x + leanX, baseY - 22);
+      ctx.moveTo(x + leanX, baseY - 22 + upperDip);
       ctx.lineTo(x, baseY - 8);
       ctx.stroke();
 
-      // legs (slight V stance, planted)
+      // legs — directional: front foot planted, back foot lifts during strike
+      const frontFootX = x + 4 * direction;
+      const backFootX  = x - 4 * direction;
       ctx.beginPath();
       ctx.moveTo(x, baseY - 8);
-      ctx.lineTo(x - 4, baseY);
+      ctx.lineTo(frontFootX, baseY);
       ctx.moveTo(x, baseY - 8);
-      ctx.lineTo(x + 4, baseY);
+      ctx.lineTo(backFootX, baseY - footLift);
       ctx.stroke();
 
-      // arm — shoulder leans, hand pivots to swing angle
-      const idleA  = isBot ? Math.PI - IDLE_ARM_ANGLE  : IDLE_ARM_ANGLE;
-      const swingA = isBot ? Math.PI - SWING_ARM_ANGLE : SWING_ARM_ANGLE;
-      const armAngle = idleA + (swingA - idleA) * swing;
+      // arm — shoulder leans, hand follows armAngle, extends at peak
       const shoulderXLean = x + leanX;
-      const handX = shoulderXLean + Math.cos(armAngle) * 10;
-      const handY = SHOULDER_Y + Math.sin(armAngle) * 10;
+      const shoulderYDipped = SHOULDER_Y + upperDip;
+      const handX = shoulderXLean + Math.cos(armAngle) * armLen;
+      const handY = shoulderYDipped + Math.sin(armAngle) * armLen;
       ctx.beginPath();
-      ctx.moveTo(shoulderXLean, SHOULDER_Y);
+      ctx.moveTo(shoulderXLean, shoulderYDipped);
       ctx.lineTo(handX, handY);
       ctx.stroke();
 
-      // racket head at the end of the arm
+      // racket motion-blur trail during peak — drawn before the primary
+      // racket so the current frame paints on top
+      if (s.arm > 0.3) {
+        const elapsedMs = now - swingStart;
+        ghostRacketAt((elapsedMs - 25) / SWING_ANIM_MS, x, isBot, 0.30);
+        ghostRacketAt((elapsedMs - 50) / SWING_ANIM_MS, x, isBot, 0.15);
+      }
+
+      // primary racket head
       drawRacket(handX, handY, armAngle);
 
       ctx.restore();
@@ -602,10 +702,11 @@
       ctx.clearRect(0, 0, W, H);
       drawCourtLine();
       drawNet();
+      drawStageArc(PLAYER_X);                                        // user-only stage mark
       drawShuttle(now);
       drawHitFlashes(now);
-      drawStickFigure(PLAYER_X, false, swingFor(userSwingStart, now));
-      drawStickFigure(CPU_X,    true,  swingFor(botSwingStart,  now));
+      drawStickFigure(PLAYER_X, false, userSwingStart, now);
+      drawStickFigure(CPU_X,    true,  botSwingStart,  now);
       drawBubble(now);
       drawCounter();
     }
