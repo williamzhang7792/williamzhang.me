@@ -720,7 +720,10 @@
       ctx.font = "500 italic 19px Caveat, cursive";
       ctx.textAlign = "right";
       ctx.textBaseline = "alphabetic";
-      ctx.fillText(bubble.text, CPU_X - 10, FLOOR_Y - 50);
+      // Sit clearly above the net top (FLOOR_Y - 64). Bubble text at the
+      // old FLOOR_Y - 50 was entirely inside the net's y-range; longer
+      // lines like "im gonna speed up!" made the overlap obvious.
+      ctx.fillText(bubble.text, CPU_X - 10, FLOOR_Y - 75);
       ctx.restore();
     }
 
