@@ -286,13 +286,13 @@
     const INTRO_DURATION_MS = INTRO_SEGMENTS[INTRO_SEGMENTS.length - 1].end;
 
     const bubblePool = [
-      "im gonna speed up!",
+      "im speeding up!",
       "keep it up", "nice", "huh", "real?", "ok ok",
       "warmup", "hmm", "oof", "uh oh", "you're cooking",
       "ok flex", "...",
     ];
 
-    // The very first bubble after a user hit is always "im gonna speed up!"
+    // The very first bubble after a user hit is always "im speeding up!"
     // — bot warning the player about the difficulty ramp. Subsequent bubbles
     // pull randomly from the pool above (which still contains the same line,
     // so it can reappear later).
@@ -372,7 +372,7 @@
       // First successful bot return per game: always announce the speed ramp.
       if (!firstBubbleShown) {
         firstBubbleShown = true;
-        bubble = { text: "im gonna speed up!", born: performance.now() };
+        bubble = { text: "im speeding up!", born: performance.now() };
         return;
       }
       if (Math.random() > BUBBLE_PROBABILITY) return;
@@ -401,7 +401,7 @@
       botSwingStart  = -Infinity;        // bot stays idle through the intro
       hitFlashes = [];
       bubble = null;
-      firstBubbleShown = false;          // bot will reannounce "im gonna speed up!"
+      firstBubbleShown = false;          // bot will reannounce "im speeding up!"
       landingPhase = false;
       landedAt = 0;
       landedX = 0;
@@ -727,7 +727,7 @@
       ctx.textBaseline = "alphabetic";
       // Sit clearly above the net top (FLOOR_Y - 64). Bubble text at the
       // old FLOOR_Y - 50 was entirely inside the net's y-range; longer
-      // lines like "im gonna speed up!" made the overlap obvious.
+      // lines like "im speeding up!" made the overlap obvious.
       ctx.fillText(bubble.text, CPU_X - 10, FLOOR_Y - 75);
       ctx.restore();
     }
