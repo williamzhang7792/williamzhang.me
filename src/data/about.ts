@@ -71,7 +71,7 @@ export const about: About = {
       parts: [
         "1st @ ",
         { label: "SOA Research Challenge", href: "https://www.soa.org/research/research-challenge/" },
-        " 2025 (68 international teams)",
+        " (2025, 68 international teams)",
       ],
     },
     {
@@ -79,7 +79,7 @@ export const about: About = {
       parts: [
         "1st @ ",
         { label: "CPA Case Challenge", href: "https://www.cpacanada.ca" },
-        " 2024 (75 national teams)",
+        " (2024, 75 national teams)",
       ],
     },
   ],

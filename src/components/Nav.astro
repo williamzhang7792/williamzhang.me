@@ -29,21 +29,23 @@ const isNotes = pathname.startsWith("/notes");
     gap: 14px;
     margin-bottom: 24px;
     font-size: 15px;
-    color: var(--text-muted);
+    color: var(--text-body);
   }
 
   .nav-link {
     font-style: italic;
-    color: var(--text-muted);
+    font-weight: 500;
+    color: var(--text-body);
   }
 
   .nav-link.active {
     color: var(--accent);
+    font-weight: 600;
   }
 
   .nav-sep {
-    color: var(--border-subtle);
-    font-style: italic;
+    color: var(--text-muted);
+    font-style: normal;
     user-select: none;
   }
 </style>

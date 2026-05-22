@@ -121,12 +121,12 @@ a {
 
 /* ============================================================
    Section labels — italic lowercase burgundy in Cormorant.
-   v1.2: tighter top/bottom margins.
+   v1.3: weight 500 → 600 so structural headers land harder than body.
    ============================================================ */
 .section-label {
   font-family: var(--font-display);
   font-style: italic;
-  font-weight: 500;
+  font-weight: 600;
   font-size: 18px;
   color: var(--accent);
   margin-top: 20px;

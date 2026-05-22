@@ -81,7 +81,7 @@ const socials = [
   .site-footer {
     margin-top: 40px;
     padding-top: 20px;
-    border-top: 1px solid var(--border-subtle);
+    border-top: 1px dashed color-mix(in srgb, var(--border-subtle) 70%, transparent);
     display: flex;
     justify-content: space-between;
     align-items: flex-end;
@@ -124,7 +124,10 @@ const socials = [
   }
 
   .last-touched {
-    margin: 0;
+    /* Right-margin pulls the timestamp inward to align with where the
+       signature flourish naturally tapers off (~92% of signature width).
+       Visual stack feels intentional, not box-aligned. */
+    margin: 0 12px 0 0;
     font-family: var(--font-mono);
     font-size: 11px;
     letter-spacing: 0.02em;
