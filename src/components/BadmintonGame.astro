@@ -39,13 +39,15 @@
   </button>
 
   <div id="bm-canvas-wrap" class="bm-canvas-wrap" hidden>
-    <canvas id="bm-canvas" width="400" height="300" aria-label="Badminton rally game"></canvas>
     <p class="bm-help">
       <span class="bm-help-key">space</span> or <span class="bm-help-key">click</span> to hit.
     </p>
-    <div id="bm-gameover" class="bm-gameover" hidden aria-live="polite">
-      <p class="bm-gameover-rally">rally: <span id="bm-final-rally">0</span></p>
-      <button type="button" id="bm-play-again" class="bm-play-again">play again</button>
+    <div class="bm-canvas-stage">
+      <canvas id="bm-canvas" width="400" height="300" aria-label="Badminton rally game"></canvas>
+      <div id="bm-gameover" class="bm-gameover" hidden aria-live="polite">
+        <p class="bm-gameover-rally">rally: <span id="bm-final-rally">0</span></p>
+        <button type="button" id="bm-play-again" class="bm-play-again">play again</button>
+      </div>
     </div>
   </div>
 </section>
@@ -82,12 +84,19 @@
   }
 
   .bm-canvas-wrap {
-    position: relative;
     margin-top: 18px;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
     gap: 6px;
+  }
+
+  /* Stage scopes position:relative to just the canvas + overlay so the
+     game-over overlay's inset:0 maps to the canvas footprint and the
+     help text above can never be covered by it. */
+  .bm-canvas-stage {
+    position: relative;
+    display: block;
   }
 
   #bm-canvas {
@@ -125,9 +134,7 @@
 
   .bm-gameover {
     position: absolute;
-    inset: 0 0 auto 0;
-    height: 300px;
-    max-height: 100%;
+    inset: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -173,10 +180,6 @@
 
   @media (max-width: 720px) {
     #bm-canvas {
-      width: 100%;
-      max-width: 360px;
-    }
-    .bm-gameover {
       width: 100%;
       max-width: 360px;
     }
