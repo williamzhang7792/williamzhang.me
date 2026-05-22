@@ -743,7 +743,10 @@
       ctx.textAlign = "left";
       ctx.fillText(`rally: ${rally}`, 14, 12);
 
-      ctx.fillStyle = COLOR.muted;
+      // Use body ink (not muted grey) — muted on cream paper was too low
+      // contrast to read. The 14px size vs the 19px rally counter still
+      // keeps "best" visually secondary.
+      ctx.fillStyle = COLOR.body;
       ctx.font = "500 italic 14px Caveat, cursive";
       ctx.textAlign = "right";
       ctx.fillText(`best: ${bestRally}`, W - 14, 14);
