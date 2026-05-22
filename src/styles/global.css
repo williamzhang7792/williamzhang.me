@@ -214,30 +214,60 @@ body.notes-index .paper {
 }
 
 /* ============================================================
-   .link-strong — bold + ALWAYS-VISIBLE underline + hover emphasis.
+   .link-strong — bold + always-visible underline + charging-bar hover.
    Used for bullet entity labels and the UWaterloo bio link.
-   The persistent underline tells the reader "this is a link" before
-   they hover; hover kicks color + underline to full burgundy.
+
+   Two stacked pseudo-elements at the same baseline offset:
+     ::before — persistent thin line at 30% accent (rest state signal)
+     ::after  — full-accent 1.5px bar that scaleX(0)→scaleX(1) on hover
+
+   Drops text-decoration entirely so the underline never breaks around
+   descenders. Fixes the "gfpop" half-underline issue (text-decoration
+   with default skip-ink: auto interrupts the line around g, f, p, p).
    ============================================================ */
 .link-strong {
+  position: relative;
+  display: inline-block;
   font-weight: 700;
   color: var(--text-body);
-  text-decoration: underline;
-  text-decoration-color: color-mix(in srgb, var(--accent) 30%, transparent);
-  text-underline-offset: 3px;
-  text-decoration-thickness: 1px;
-  transition:
-    color var(--transition-base),
-    text-decoration-color var(--transition-base),
-    text-decoration-thickness var(--transition-base);
+  text-decoration: none;
+  transition: color var(--transition-base);
+}
+
+.link-strong::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -3px;
+  height: 1px;
+  background-color: color-mix(in srgb, var(--accent) 30%, transparent);
+  pointer-events: none;
+}
+
+.link-strong::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -3px;
+  height: 1.5px;
+  background-color: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 450ms cubic-bezier(0.4, 0.7, 0.2, 1);
+  pointer-events: none;
 }
 
 .link-strong:hover,
 .link-strong:focus-visible {
   color: var(--accent);
-  text-decoration-color: var(--accent);
-  text-decoration-thickness: 1.5px;
   outline: none;
+}
+
+.link-strong:hover::after,
+.link-strong:focus-visible::after {
+  transform: scaleX(1);
 }
 
 /* ============================================================
