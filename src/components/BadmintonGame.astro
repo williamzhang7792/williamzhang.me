@@ -1,23 +1,25 @@
 ---
 /**
- * BadmintonGame — timing-based mini-game where the visitor plays a rally
- * against William.
+ * BadmintonGame — ambient-toy rewrite (v1.7.2).
  *
- * v1.7 mechanics rewrite:
- *   - Visitor (left) and bot (right) are stick figures. Bot has a "W"
- *     badge above its head so it reads as William.
- *   - Constant hit circle around the visitor — visible at all times.
- *   - Press space/click while shuttle is INSIDE the circle = hit.
- *     Where in the circle determines shot type:
- *       top third    -> smash (fast low arc)
- *       middle third -> clear (high defensive arc)
- *       bottom third -> drop  (short floater)
- *   - Press space/click outside the circle = wasted swing.
- *     Three wasted swings or a floor drop = lose rally.
- *   - Each rally is explicitly served — no auto-restart after a miss.
+ * The smile-and-move-on version. Two stick figures, a shuttle, click or
+ * space to hit. Rally goes until someone misses, brief flash, auto-serves
+ * again. No states, no perfect tiers, no failure tracking. Built to be
+ * easy to read so it's hard to break.
  *
- * Theme colors source from CSS tokens at game init so the canvas tracks
- * the design tokens automatically.
+ * Mechanics:
+ *   - Shuttle auto-launches from the visitor's racket (underhand serve)
+ *     whenever the canvas opens or after a 1.2s pause following a miss
+ *   - Stick figures auto-track the shuttle horizontally on their side;
+ *     return to home position during the 1.2s frozen pause
+ *   - Press space/click while shuttle is on player side AND inside the
+ *     hit circle = return shot. Otherwise: silent no-op (no penalty)
+ *   - CPU returns automatically with a small flat miss probability
+ *     that scales gently with rally length (12-27%)
+ *   - Shuttle hits floor → casual flash message + auto-serve in 1.2s
+ *
+ * All canvas colors source from CSS tokens (--text-body, --text-muted,
+ * --accent, --bg-paper, --border-subtle) at game init.
  *
  * Lazy-mounted: canvas is collapsed by default. Hidden on touch via
  * @media (hover: none); the .bm-touch-fallback line shows instead.
@@ -43,9 +45,6 @@
     <canvas id="bm-canvas" width="400" height="300" aria-label="Badminton rally game"></canvas>
     <p class="bm-help">
       <span class="bm-help-key">space</span> or <span class="bm-help-key">click</span> to hit.
-    </p>
-    <p class="bm-help-sub">
-      hit the birdie when it's close to the circle.
     </p>
   </div>
 </section>
@@ -119,14 +118,6 @@
     font-style: italic;
   }
 
-  .bm-help-sub {
-    margin: 0;
-    font-family: var(--font-script);
-    font-size: 15px;
-    color: var(--text-muted);
-    font-style: italic;
-  }
-
   .bm-help-key {
     font-family: var(--font-mono);
     font-size: 12px;
@@ -161,11 +152,7 @@
 
   type Shuttle = { x: number; y: number; vx: number; vy: number; rot: number };
   type FlashMsg = { text: string; x: number; y: number; rot: number; t: number };
-  type HitFlash = { x: number; y: number; t: number };
   type TrailDot = { x: number; y: number; t: number };
-  type ShotKind = "smash" | "clear" | "drop";
-  type ShotLabel = { text: string; t: number; perfect: boolean };
-  type GameState = "idle" | "rally";
 
   const trigger = document.getElementById("bm-trigger");
   const wrap = document.getElementById("bm-canvas-wrap");
@@ -178,17 +165,12 @@
     const NET_X = W / 2;
     const FLOOR_Y = H - 20;
 
-    // Hit circle around the visitor.
     const HIT_CIRCLE_RADIUS = 30;
-    const PERFECT_RADIUS = HIT_CIRCLE_RADIUS * 0.5; // 15px inner perfect zone
-    const HIT_CENTER_OFFSET_Y = 24; // from FLOOR_Y; circle center y = FLOOR_Y - this
-
+    const HIT_CENTER_OFFSET_Y = 24;
     // CPU only swings once shuttle is descending and below this y.
     const CPU_HIT_ZONE_TOP = H * 0.55;
 
-    // Theme colors sourced from CSS custom properties so the canvas tracks
-    // the design tokens. Fallbacks are belt-and-suspenders for environments
-    // where getComputedStyle returns empty.
+    // Theme colors sourced from CSS custom properties.
     const css = getComputedStyle(document.documentElement);
     const COLOR = {
       body:   css.getPropertyValue("--text-body").trim()     || "#1c1c1c",
@@ -199,27 +181,24 @@
     } as const;
 
     // --- state ---
-    let state: GameState = "idle";
-    const shuttle: Shuttle = { x: 80, y: 40, vx: 0, vy: 0, rot: 0 };
+    const shuttle: Shuttle = { x: 40, y: FLOOR_Y - 24, vx: 0, vy: 0, rot: 0 };
     let rally = 0;
     let bestRally = parseInt(safeStorage.get("wz-best-rally") ?? "0", 10) || 0;
-    let lastHitter: "player" | "cpu" | null = null;
-    let cpuReactionTimer = 0;
+    let lastHitter: "player" | "cpu" = "cpu";
     let cpuReacting = false;
+    let cpuReactionTimer = 0;
     let flash: FlashMsg | null = null;
-    let hitFlashes: HitFlash[] = [];
     let trail: TrailDot[] = [];
+    let playerX = 40;
+    let cpuX = W - 40;
+    let playerSwinging = 0;
+    let cpuSwinging = 0;
+    let playerHasHit = false;
+    let frozen = false;                              // shuttle parked at floor between rallies
+    let prevOnPlayerSide = true;                     // bug 5 fix: detect side cross-back
+    let pendingServeTimer: number | null = null;     // bug 1 fix: track + clear
     let running = false;
     let lastTime = 0;
-    let resetFadeT = 1; // 0..1, 1 = fully visible
-    let playerX = 40;   // tracked; lerps toward shuttle.x on player side
-    let cpuX = W - 40;
-    let playerSwinging = 0; // 0..1 — drives stick-figure arm angle on hit
-    let cpuSwinging = 0;
-    let playerHasHit = false; // prevents double-hit on same shuttle pass
-    let wastedSwings = 0;     // swings outside the hit circle this rally
-    let shotLabel: ShotLabel | null = null;
-    let lastShotWasPerfectSmash = false; // CPU has a harder time returning these
 
     // Caveat font may not be loaded at first paint; let it warm up.
     document.fonts?.ready?.catch(() => {});
@@ -250,146 +229,76 @@
       return shuttle.x < NET_X;
     }
 
-    function showShotLabel(shot: ShotKind, isPerfect: boolean) {
-      const text = isPerfect ? `perfect ${shot}!` : `${shot}!`;
-      // Perfect labels stay visible 25% longer for the skill-ceiling reward feel.
-      shotLabel = { text, t: isPerfect ? 1.25 : 1, perfect: isPerfect };
+    function clearPendingServeTimer() {
+      if (pendingServeTimer !== null) {
+        clearTimeout(pendingServeTimer);
+        pendingServeTimer = null;
+      }
     }
 
-    // --- state transitions ---
+    // --- game actions ---
 
-    function goToIdle() {
-      state = "idle";
-      shuttle.vx = 0;
-      shuttle.vy = 0;
-      // Park shuttle hovering above player as a visual "ready to serve" cue.
-      shuttle.x = playerX + 6;
-      shuttle.y = 40;
-      shuttle.rot = 0;
-      cpuReacting = false;
-      cpuReactionTimer = 0;
-      playerHasHit = false;
-      wastedSwings = 0;
-      trail = [];
-      hitFlashes = [];
-    }
-
-    function attemptServe() {
-      if (state !== "idle") return;
-      state = "rally";
-      rally = 0;
-      wastedSwings = 0;
-      playerHasHit = false;
-
-      // Shuttle starts at the player's racket-hand position. Idle arm angle
-      // is -PI/3.5, arm length 10, shoulder at FLOOR_Y - 18 — matches what
-      // drawStickFigure renders so the shuttle visibly leaves the racket.
+    function autoServe() {
+      // Shuttle starts at the visitor's racket-hand position (matches
+      // drawStickFigure's idle arm angle). Underhand serve forward over net.
       const shoulderY = FLOOR_Y - 18;
       const idleArmAngle = -Math.PI / 3.5;
       shuttle.x = playerX + Math.cos(idleArmAngle) * 10;
       shuttle.y = shoulderY + Math.sin(idleArmAngle) * 10;
-
-      // Underhand serve — gentle upward arc forward over the net.
-      shuttle.vx = rand(1.8, 2.2);
-      shuttle.vy = rand(-4.2, -3.7);
+      shuttle.vx = rand(1.6, 2.0);
+      shuttle.vy = rand(-3.8, -3.2);
       shuttle.rot = 0;
-
+      rally = 0;
+      playerHasHit = false;
+      trail = [];
+      cpuReacting = false;
+      cpuReactionTimer = 0;
       lastHitter = "player";
       playerSwinging = 1;
-      resetFadeT = 1;
+      frozen = false;
+      prevOnPlayerSide = true;
     }
 
     function attemptHit() {
-      if (state !== "rally") return;
+      if (frozen) return;
       if (!shuttleOnPlayerSide()) return;
       if (playerHasHit) return;
 
-      const cx = playerX;
       const cy = FLOOR_Y - HIT_CENTER_OFFSET_Y;
-      const dx = shuttle.x - cx;
+      const dx = shuttle.x - playerX;
       const dy = shuttle.y - cy;
       const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > HIT_CIRCLE_RADIUS) return; // silent no-op outside circle
 
-      if (dist <= HIT_CIRCLE_RADIUS) {
-        // Inside circle — successful hit. Two dimensions:
-        //   - Distance to center: inside PERFECT_RADIUS = perfect tier
-        //   - Y-position in circle: top = smash, mid = clear, bottom = drop
-        const isPerfect = dist <= PERFECT_RADIUS;
-        const relY = (dy + HIT_CIRCLE_RADIUS) / (HIT_CIRCLE_RADIUS * 2);
-        let shot: ShotKind;
-        if (relY < 0.34) shot = "smash";
-        else if (relY < 0.67) shot = "clear";
-        else shot = "drop";
-
-        executePlayerShot(shot, isPerfect);
-        // Track if the player's last hit was a perfect smash so the CPU's
-        // miss probability can spike against it (skill rewards loop).
-        lastShotWasPerfectSmash = isPerfect && shot === "smash";
-        rally++;
-        playerHasHit = true;
-        playerSwinging = 1;
-        showShotLabel(shot, isPerfect);
-        hitFlashes.push({ x: shuttle.x, y: shuttle.y, t: 1 });
-      } else {
-        // Outside circle — wasted swing.
-        wastedSwings++;
-        playerSwinging = 0.55;
-        if (wastedSwings >= 3) endRally("player-miss");
-      }
-    }
-
-    // --- shot trajectories ---
-
-    function executePlayerShot(shot: ShotKind, isPerfect: boolean) {
-      const targetX = clamp(NET_X + rand(60, W - NET_X - 60), NET_X + 50, W - 30);
-      const dx = targetX - shuttle.x;
-      // Perfect hits: ~15% more power, tighter trajectory variance.
-      const power = isPerfect ? 1.15 : 1.0;
-
-      if (shot === "smash") {
-        shuttle.vx = Math.max(3.4 * power, dx / 26);
-        shuttle.vy = rand(-1.4, -0.6) * power;
-      } else if (shot === "clear") {
-        shuttle.vx = clamp(dx / 60, 1.3, 2.6);
-        shuttle.vy = rand(-3.6, -3.0) * power;
-      } else {
-        // drop — barely crosses net, falls quickly
-        shuttle.vx = Math.max(1.2, (NET_X + 50 - shuttle.x) / 50);
-        shuttle.vy = rand(-2.0, -1.5);
-      }
+      // One return shot type with slight random variance for life.
+      const targetX = NET_X + rand(60, W - NET_X - 60);
+      const dxTarget = targetX - shuttle.x;
+      shuttle.vx = clamp(dxTarget / 50, 1.6, 3.0);
+      shuttle.vy = rand(-3.6, -2.8);
+      rally++;
       lastHitter = "player";
+      playerHasHit = true;
+      playerSwinging = 1;
     }
 
-    function executeCpuShot() {
-      // CPU picks a shot weighted: 50% clear, 30% drop, 20% smash.
-      const r = Math.random();
-      const shot: ShotKind = r < 0.5 ? "clear" : r < 0.8 ? "drop" : "smash";
-      const targetX = clamp(rand(40, NET_X - 40), 30, NET_X - 30);
-      const dx = targetX - shuttle.x;
-
-      if (shot === "smash") {
-        shuttle.vx = Math.min(-3.4, dx / 26);
-        shuttle.vy = rand(-1.4, -0.6);
-      } else if (shot === "clear") {
-        shuttle.vx = clamp(dx / 60, -2.6, -1.3);
-        shuttle.vy = rand(-3.6, -3.0);
-      } else {
-        // drop
-        shuttle.vx = Math.min(-1.2, (NET_X - 50 - shuttle.x) / 50);
-        shuttle.vy = rand(-2.0, -1.5);
-      }
+    function cpuReturn() {
+      // Flat miss probability with gentle rally-length scaling. Caps at 0.27
+      // so very long rallies remain possible but losses happen organically.
+      const missProb = 0.12 + Math.min(rally * 0.003, 0.15);
+      if (Math.random() < missProb) return; // CPU misses, shuttle keeps falling
+      const targetX = rand(50, NET_X - 50);
+      const dxTarget = targetX - shuttle.x;
+      shuttle.vx = clamp(dxTarget / 50, -3.0, -1.6);
+      shuttle.vy = rand(-3.6, -2.8);
+      rally++;
       lastHitter = "cpu";
       cpuSwinging = 1;
-      hitFlashes.push({ x: shuttle.x, y: shuttle.y, t: 1 });
-      rally++;
-      // playerHasHit resets when CPU returns the shuttle.
-      playerHasHit = false;
+      // Note: playerHasHit reset is handled by the side-transition check
+      // in tick() (bug 5 fix), not here. Keeps reset logic in one place.
     }
 
-    // --- rally end ---
-
     function endRally(reason: "player-miss" | "cpu-miss") {
-      const text = reason === "player-miss" ? pick(losePool) : pick(winPool);
+      const text = pick(reason === "player-miss" ? losePool : winPool);
       flash = {
         text,
         x: clamp(shuttle.x, 60, W - 60),
@@ -401,50 +310,61 @@
         bestRally = rally;
         safeStorage.set("wz-best-rally", String(bestRally));
       }
-      // Brief pause then return to idle for next serve.
-      window.setTimeout(() => goToIdle(), 1400);
-      state = "idle"; // immediate state change so further input is rejected
+      frozen = true;
       shuttle.vx = 0;
       shuttle.vy = 0;
+
+      // Bug 1 fix: track the pending timer so close + reopen can cancel it.
+      pendingServeTimer = window.setTimeout(() => {
+        pendingServeTimer = null;
+        autoServe();
+      }, 1200);
     }
 
     // --- physics + AI ---
 
     function tick(dt: number) {
-      // Track player horizontal position toward shuttle on the player side;
-      // CPU does the same on its side. Auto-movement gives visual agency.
-      const playerTarget = shuttleOnPlayerSide()
-        ? clamp(shuttle.x, 28, NET_X - 18)
-        : 40;
-      const cpuTarget = shuttleOnPlayerSide()
-        ? W - 40
-        : clamp(shuttle.x, NET_X + 18, W - 28);
-      playerX += (playerTarget - playerX) * 0.12 * dt;
-      cpuX += (cpuTarget - cpuX) * 0.12 * dt;
-
-      // Decay swing animations + pulses + flashes on every frame.
+      // Animation decays — always run regardless of frozen state.
       playerSwinging = Math.max(0, playerSwinging - 0.06 * dt);
       cpuSwinging = Math.max(0, cpuSwinging - 0.06 * dt);
-      for (const f of hitFlashes) f.t -= 0.06 * dt;
-      hitFlashes = hitFlashes.filter((f) => f.t > 0);
-      if (shotLabel) {
-        shotLabel.t -= 0.025 * dt;
-        if (shotLabel.t <= 0) shotLabel = null;
-      }
       if (flash) {
         flash.t -= 0.013 * dt;
         if (flash.t <= 0) flash = null;
       }
 
-      // In idle state, nothing else to update — shuttle is parked.
-      if (state !== "rally") return;
+      // Bug 3 fix: stick figures lerp to home positions when frozen,
+      // shuttle-tracking positions otherwise. Prevents the player from
+      // walking toward the dead shuttle during the 1.2s pause.
+      const playerTarget = frozen
+        ? 40
+        : shuttleOnPlayerSide()
+          ? clamp(shuttle.x, 28, NET_X - 18)
+          : 40;
+      const cpuTarget = frozen
+        ? W - 40
+        : shuttleOnPlayerSide()
+          ? W - 40
+          : clamp(shuttle.x, NET_X + 18, W - 28);
+      playerX += (playerTarget - playerX) * 0.12 * dt;
+      cpuX += (cpuTarget - cpuX) * 0.12 * dt;
+
+      if (frozen) return; // skip physics + AI while parked
 
       // physics
-      shuttle.vy += 0.12 * dt; // gravity
+      shuttle.vy += 0.10 * dt; // gravity (slightly slower than v1.7's 0.12)
       shuttle.vx *= 0.997;
       shuttle.x += shuttle.vx * dt;
       shuttle.y += shuttle.vy * dt;
       shuttle.rot = shuttle.vx * 0.045;
+
+      // Bug 5 fix: detect shuttle returning to player side from CPU side.
+      // Reset playerHasHit so wall-bounces / CPU misses don't trap the player
+      // in an unhittable state.
+      const onPlayerSide = shuttleOnPlayerSide();
+      if (!prevOnPlayerSide && onPlayerSide) {
+        playerHasHit = false;
+      }
+      prevOnPlayerSide = onPlayerSide;
 
       // trail
       trail.unshift({ x: shuttle.x, y: shuttle.y, t: 1 });
@@ -455,9 +375,7 @@
       // CPU AI: schedule a swing once the shuttle enters CPU's hit zone.
       const onCpuSide = shuttle.x >= NET_X;
       const inCpuHitZone =
-        onCpuSide &&
-        shuttle.vy >= 0 &&
-        shuttle.y > CPU_HIT_ZONE_TOP;
+        onCpuSide && shuttle.vy >= 0 && shuttle.y > CPU_HIT_ZONE_TOP;
       if (inCpuHitZone && lastHitter === "player" && !cpuReacting) {
         cpuReacting = true;
         cpuReactionTimer = Math.floor(rand(8, 22));
@@ -467,22 +385,13 @@
         cpuReactionTimer -= dt;
         if (cpuReactionTimer <= 0) {
           cpuReacting = false;
-          // Miss probability climbs slowly with rally length so very long
-          // rallies remain possible but losing eventually happens organically.
-          // Perfect smashes are genuinely harder to return — bump miss
-          // probability +10% so precision is rewarded with occasional wins.
-          let missProb = Math.min(0.35, 0.12 + rally * 0.005);
-          if (lastShotWasPerfectSmash) missProb = Math.min(0.55, missProb + 0.1);
           const stillInZone =
             shuttle.x >= NET_X &&
             shuttle.vy >= 0 &&
             shuttle.y > CPU_HIT_ZONE_TOP &&
             shuttle.y < FLOOR_Y;
-          if (stillInZone && Math.random() > missProb) {
-            executeCpuShot();
-            lastShotWasPerfectSmash = false; // consumed by this hit
-          }
-          // else: CPU misses; shuttle keeps falling, ends the rally below.
+          if (stillInZone) cpuReturn();
+          // else: shuttle left the hit zone before CPU swung; let it fall.
         }
       }
 
@@ -514,7 +423,7 @@
     // --- drawing ---
 
     function drawWashi() {
-      // Cheap noise overlay to match the outer paper feel.
+      // Cheap noise overlay to match outer paper feel.
       ctx.save();
       ctx.globalAlpha = 0.025;
       ctx.fillStyle = COLOR.body;
@@ -556,103 +465,29 @@
       ctx.restore();
     }
 
-    /**
-     * Project the shuttle's trajectory forward to find where it will land.
-     * Returns the predicted X coordinate at FLOOR_Y, or null if the shuttle
-     * is going to bounce off a wall before landing (telegraph would be
-     * inaccurate in that case — better to show nothing than mislead).
-     *
-     * Uses iterative simulation against the same physics constants as tick()
-     * so the prediction matches what's about to happen.
-     */
-    function computeLanding(): number | null {
-      let x = shuttle.x;
-      let y = shuttle.y;
-      let vx = shuttle.vx;
-      let vy = shuttle.vy;
-      const gravity = 0.12;
-      for (let i = 0; i < 200; i++) {
-        vy += gravity;
-        vx *= 0.997;
-        x += vx;
-        y += vy;
-        if (x < 6 || x > W - 6) return null;
-        if (y >= FLOOR_Y) return clamp(x, 6, W - 6);
-      }
-      return null;
-    }
-
-    function drawLandingTelegraph() {
-      if (state !== "rally") return;
-      if (shuttle.vy < 0) return; // only on descent
-      if (resetFadeT < 1) return;
-      const lx = computeLanding();
-      if (lx === null) return;
-
-      ctx.save();
-      // Opacity ramps with vertical progress — barely visible at peak,
-      // brightens as shuttle approaches landing.
-      const verticalProgress = clamp(
-        (shuttle.y - 40) / (FLOOR_Y - 40),
-        0,
-        1,
-      );
-      const alpha = 0.12 + verticalProgress * 0.35;
-
-      ctx.fillStyle = COLOR.muted;
-      ctx.globalAlpha = alpha;
-      ctx.beginPath();
-      ctx.arc(lx, FLOOR_Y, 3, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Faint outer ring to read as "this is where" rather than a stray pixel.
-      ctx.strokeStyle = COLOR.muted;
-      ctx.globalAlpha = alpha * 0.6;
-      ctx.lineWidth = 0.8;
-      ctx.beginPath();
-      ctx.arc(lx, FLOOR_Y, 6, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
-    }
-
     function drawHitCircle() {
-      // Constant circle around the visitor — visual hit-zone marker.
-      // Outer ring brightens when the shuttle is inside.
-      // Inner dot marks the perfect-tier sub-zone — brightens when the
-      // shuttle enters it, telegraphing "you're about to land a perfect hit."
+      // Single ring around the visitor. Brightens when shuttle is inside.
       const cx = playerX;
       const cy = FLOOR_Y - HIT_CENTER_OFFSET_Y;
       const dx = shuttle.x - cx;
       const dy = shuttle.y - cy;
       const dist = Math.sqrt(dx * dx + dy * dy);
       const inside = dist <= HIT_CIRCLE_RADIUS;
-      const inPerfect = dist <= PERFECT_RADIUS;
 
       ctx.save();
-
-      // Outer ring
       ctx.strokeStyle = COLOR.accent;
       ctx.lineWidth = inside ? 1.6 : 1;
       ctx.globalAlpha = inside ? 0.5 : 0.16;
       ctx.beginPath();
       ctx.arc(cx, cy, HIT_CIRCLE_RADIUS, 0, Math.PI * 2);
       ctx.stroke();
-
-      // Inner perfect-zone dot
-      ctx.fillStyle = COLOR.accent;
-      ctx.globalAlpha = inPerfect ? 0.6 : inside ? 0.25 : 0.08;
-      ctx.beginPath();
-      ctx.arc(cx, cy, 2.5, 0, Math.PI * 2);
-      ctx.fill();
-
       ctx.restore();
     }
 
     /**
-     * Draw a stick figure at (x, FLOOR_Y) standing on the court line.
-     * `swinging` is 0..1 — 1 = full swing (arm raised), 0 = idle pose.
-     * `label` if non-null is rendered above the head as a Caveat-italic mark
-     * (used for the bot's "W" badge).
+     * Draw a stick figure standing on FLOOR_Y. `swinging` is 0..1 where 1
+     * is full swing (arm raised), 0 is idle pose. `label` (e.g. "W") is
+     * rendered above the head if non-null.
      */
     function drawStickFigure(
       x: number,
@@ -686,7 +521,6 @@
       ctx.stroke();
 
       // racket arm — angle pivots up on swing.
-      // Idle: arm slightly outward and slightly up. Swing: arm reaches up.
       const idleAngle = -Math.PI / 3.5;
       const swingAngle = -Math.PI / 1.9;
       const armAngle = idleAngle + (swingAngle - idleAngle) * swinging;
@@ -696,7 +530,7 @@
       ctx.beginPath();
       ctx.moveTo(x, shoulderY);
       ctx.lineTo(handX, handY);
-      // racket head — short stroke past the hand.
+      // racket head — short stroke past the hand
       ctx.moveTo(handX, handY);
       ctx.lineTo(
         handX + Math.cos(armAngle) * 6,
@@ -727,8 +561,8 @@
       }
       ctx.restore();
 
+      // Shuttle body — alpha defaults to 1 after ctx.save().
       ctx.save();
-      ctx.globalAlpha = resetFadeT;
       ctx.translate(shuttle.x, shuttle.y);
       ctx.rotate(shuttle.rot);
       ctx.strokeStyle = COLOR.body;
@@ -749,18 +583,6 @@
       ctx.restore();
     }
 
-    function drawHitFlashes() {
-      ctx.save();
-      ctx.fillStyle = COLOR.accent;
-      for (const f of hitFlashes) {
-        ctx.globalAlpha = 0.4 * f.t;
-        ctx.beginPath();
-        ctx.arc(f.x, f.y, 4 + (1 - f.t) * 8, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      ctx.restore();
-    }
-
     function drawCounters() {
       ctx.save();
       ctx.fillStyle = COLOR.accent;
@@ -773,38 +595,6 @@
       ctx.font = "500 italic 14px Caveat, cursive";
       ctx.textAlign = "right";
       ctx.fillText(`longest: ${bestRally}`, W - 14, 14);
-      ctx.restore();
-    }
-
-    function drawIdlePrompt() {
-      if (state !== "idle") return;
-      ctx.save();
-      ctx.globalAlpha = 0.55 + 0.2 * Math.sin(performance.now() / 600);
-      ctx.fillStyle = COLOR.accent;
-      ctx.font = "italic 18px Caveat, cursive";
-      ctx.textBaseline = "middle";
-      ctx.textAlign = "center";
-      ctx.fillText("press space to serve", W / 2, H / 2 - 30);
-      ctx.restore();
-    }
-
-    function drawShotLabel() {
-      if (!shotLabel) return;
-      ctx.save();
-      ctx.globalAlpha = clamp(shotLabel.t, 0, 1);
-      ctx.fillStyle = COLOR.accent;
-      // Perfect labels render slightly larger and bolder for skill reward.
-      const size = shotLabel.perfect ? 20 : 18;
-      const weight = shotLabel.perfect ? "600" : "400";
-      ctx.font = `${weight} italic ${size}px Caveat, cursive`;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "alphabetic";
-      // Float the label slightly upward as it fades for a "lift" feel.
-      // Use min(t, 1) for the lift calc so the perfect-tier 1.25 boost
-      // doesn't push the label below its starting position.
-      const liftBase = Math.min(shotLabel.t, 1);
-      const lift = (1 - liftBase) * 12;
-      ctx.fillText(shotLabel.text, playerX, FLOOR_Y - 60 - lift);
       ctx.restore();
     }
 
@@ -821,46 +611,16 @@
       ctx.restore();
     }
 
-    function drawWastedSwingPips() {
-      // Tiny dots top-center showing how many wasted swings remain.
-      // Three total; filled = used. Quiet but informative.
-      if (state !== "rally") return;
-      ctx.save();
-      const cx = W / 2;
-      const y = 16;
-      for (let i = 0; i < 3; i++) {
-        const px = cx + (i - 1) * 9;
-        ctx.beginPath();
-        ctx.arc(px, y, 2.4, 0, Math.PI * 2);
-        if (i < wastedSwings) {
-          ctx.fillStyle = COLOR.accent;
-          ctx.globalAlpha = 0.85;
-          ctx.fill();
-        } else {
-          ctx.strokeStyle = COLOR.muted;
-          ctx.globalAlpha = 0.4;
-          ctx.lineWidth = 1;
-          ctx.stroke();
-        }
-      }
-      ctx.restore();
-    }
-
     function draw() {
       ctx.clearRect(0, 0, W, H);
       drawWashi();
       drawCourtLine();
       drawNet();
-      drawLandingTelegraph();
       drawHitCircle();
       drawShuttle();
-      drawHitFlashes();
       drawStickFigure(playerX, null, playerSwinging);
       drawStickFigure(cpuX, "W", cpuSwinging);
       drawCounters();
-      drawWastedSwingPips();
-      drawIdlePrompt();
-      drawShotLabel();
       drawFlash();
     }
 
@@ -875,22 +635,21 @@
 
     // --- input ---
 
-    function dispatchInput() {
-      if (!running) return;
-      if (state === "idle") attemptServe();
-      else attemptHit();
-    }
-
+    // Bug 6 fix: only intercept space when the canvas is focused. Otherwise
+    // let the browser scroll the page like normal. Canvas gets focus on open
+    // via canvas.focus() in the trigger handler so playing-with-space works
+    // out of the box; clicking elsewhere blurs the canvas and frees up space.
     function onSpace(e: KeyboardEvent) {
       if (!running) return;
-      if (e.code === "Space" || e.key === " ") {
-        e.preventDefault();
-        dispatchInput();
-      }
+      if (e.code !== "Space" && e.key !== " ") return;
+      if (document.activeElement !== canvas) return;
+      e.preventDefault();
+      attemptHit();
     }
 
     function onClick() {
-      dispatchInput();
+      if (!running) return;
+      attemptHit();
     }
 
     // --- toggle ---
@@ -898,22 +657,24 @@
     trigger.addEventListener("click", () => {
       const open = wrap.hasAttribute("hidden") === false;
       if (open) {
+        // Close
         wrap.setAttribute("hidden", "");
         trigger.setAttribute("aria-expanded", "false");
         running = false;
         window.removeEventListener("keydown", onSpace);
+        canvas.removeEventListener("click", onClick); // bug 2 fix
+        clearPendingServeTimer();                     // bug 1 fix
       } else {
+        // Open — fresh game
         wrap.removeAttribute("hidden");
         trigger.setAttribute("aria-expanded", "true");
-        // Fresh game.
+        clearPendingServeTimer();                     // bug 1 fix (also on reopen)
         rally = 0;
-        wastedSwings = 0;
         playerHasHit = false;
         flash = null;
-        hitFlashes = [];
         trail = [];
-        shotLabel = null;
-        goToIdle();
+        frozen = false;
+        autoServe();
         running = true;
         lastTime = 0;
         canvas.focus();
