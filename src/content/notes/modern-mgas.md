@@ -1,5 +1,5 @@
 ---
-title: "Modern MGAs"
+title: "modern MGAs"
 date: 2026-05-18
 description: "What insurtech MGAs change about actuarial work — methodology and incentives."
 draft: false

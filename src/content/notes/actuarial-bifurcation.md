@@ -1,5 +1,5 @@
 ---
-title: "The actuarial bifurcation"
+title: "the actuarial bifurcation"
 date: 2026-05-20
 description: "Where the integrated track leads, and why I'm betting on it."
 draft: false
