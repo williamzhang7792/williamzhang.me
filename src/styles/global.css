@@ -231,6 +231,10 @@ body.notes-index .paper {
   font-weight: 700;
   color: var(--text-body);
   text-decoration: none;
+  /* line-height: 1 collapses the half-leading on the inline-block box so
+     the pseudo-element underlines sit right at the descender line, not
+     several pixels below it. Required for tight underline positioning. */
+  line-height: 1;
   transition: color var(--transition-base);
 }
 
@@ -239,7 +243,7 @@ body.notes-index .paper {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: -3px;
+  bottom: -1px;
   height: 1px;
   background-color: color-mix(in srgb, var(--accent) 30%, transparent);
   pointer-events: none;
@@ -250,7 +254,7 @@ body.notes-index .paper {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: -3px;
+  bottom: -1px;
   height: 1.5px;
   background-color: var(--accent);
   transform: scaleX(0);
