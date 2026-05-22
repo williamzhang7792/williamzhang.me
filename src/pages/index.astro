@@ -13,7 +13,32 @@ const title = `${about.name}`;
     <p class="location">{about.location}</p>
   </header>
 
-  <p class="positioning">{about.positioning}</p>
+  <p class="bio-line">
+    <span>Computing &amp; Statistics</span>
+    <span class="bio-school">
+      <svg
+        class="bio-icon"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+        width="16"
+        height="16"
+      >
+        <!-- Stylized chunky W approximating the UWaterloo mark -->
+        <path d="M3 5 L7 19 L12 10 L17 19 L21 5" />
+      </svg>
+      <a
+        href="https://uwaterloo.ca/"
+        class="link-strong"
+        rel="noopener noreferrer"
+        target="_blank"
+      >UWaterloo</a>
+    </span>
+  </p>
 
   <section aria-labelledby="doing-label">
     <h2 id="doing-label" class="section-label">i've been doing:</h2>
@@ -34,13 +59,13 @@ const title = `${about.name}`;
 
 <style>
   .about-header {
-    margin-bottom: 16px;
+    margin-bottom: 8px;
   }
 
   .name {
-    font-family: var(--font-serif);
+    font-family: var(--font-display);
     font-weight: 500;
-    font-size: 30px;
+    font-size: 28px;
     color: var(--accent);
     margin: 0 0 2px 0;
     letter-spacing: -0.005em;
@@ -51,13 +76,29 @@ const title = `${about.name}`;
     font-style: italic;
     color: var(--text-muted);
     margin: 0;
-    font-size: 15px;
+    font-size: 14px;
   }
 
-  .positioning {
-    margin: 16px 0 0 0;
-    font-size: 17px;
-    line-height: 1.65;
+  .bio-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+    margin: 0 0 4px 0;
+    font-size: 16px;
+    color: var(--text-body);
+  }
+
+  .bio-school {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .bio-icon {
+    color: var(--text-muted);
+    flex-shrink: 0;
+    transform: translateY(-1px);
   }
 
   .bullets {

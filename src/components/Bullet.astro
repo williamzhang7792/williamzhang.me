@@ -57,7 +57,7 @@ const isLinkPart = (p: TextPart): p is { label: string; href: string } =>
       isLinkPart(part) ? (
         <a
           href={part.href}
-          class="bullet-link link-underline"
+          class="link-strong"
           rel={part.href.startsWith("http") ? "noopener noreferrer" : undefined}
           target={part.href.startsWith("http") ? "_blank" : undefined}
         >{part.label}</a>
@@ -73,9 +73,9 @@ const isLinkPart = (p: TextPart): p is { label: string; href: string } =>
     display: flex;
     align-items: baseline;
     gap: 8px;
-    padding: 3px 0;
-    font-size: 17px;
-    line-height: 1.55;
+    padding: 2px 0;
+    font-size: 16px;
+    line-height: 1.5;
   }
 
   .arrow {
@@ -103,11 +103,5 @@ const isLinkPart = (p: TextPart): p is { label: string; href: string } =>
 
   .bullet-plain {
     /* explicit class so the schema reads symmetrically; no extra styles needed. */
-  }
-
-  /* Linkable label: weight bump signals "this is interactive" before hover.
-     The L→R underline + color shift come from .link-underline in global.css. */
-  .bullet-link {
-    font-weight: 600;
   }
 </style>

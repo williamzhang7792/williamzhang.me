@@ -1,14 +1,14 @@
 ---
 /**
  * WashiTexture — paper-fiber noise overlay using SVG feTurbulence,
- * plus 2-3 very faint horizontal crease lines that read like a
- * folded sheet.
+ * with multiple fold creases + edge fiber wisps for a more material feel.
  *
- * v1.1 tuning:
- *   - opacity 0.04 → 0.07 (paper presence visible without dominating)
- *   - baseFrequency 0.85 → 0.65 (larger noise clumps = paper grain, not static)
- *   - numOctaves 2 → 3 (more layered detail)
- *   - retina opacity raised to 0.05 in global.css high-DPI override
+ * v1.2 tuning:
+ *   - opacity 0.07 → 0.09 (more material presence; Source Serif body at
+ *     400 weight tolerates more background activity)
+ *   - 5 fold creases (was 3) at varied positions and slight tilts
+ *   - 4 short edge wisps near top + bottom suggesting paper fibers exposed
+ *     by the deckled edge
  *
  * pointer-events: none so it never intercepts clicks/hover.
  */
@@ -43,12 +43,27 @@
   <!-- Paper grain — covers entire surface. -->
   <rect width="100%" height="100%" filter="url(#washi-noise)" />
 
-  <!-- Faint creases — read as fold lines on a sheet that's been opened.
-       Stroke width well under 1px so they barely register; opacity tiny. -->
+  <!-- Fold creases — 5 horizontal-ish lines at varied positions and slight
+       tilts, suggesting a sheet that's been folded multiple times. -->
   <g stroke="#7A0E20" fill="none" stroke-linecap="round">
-    <path d="M 0,260 Q 350,256 700,262" stroke-width="0.5" opacity="0.07" />
-    <path d="M 0,560 Q 350,565 700,558" stroke-width="0.4" opacity="0.05" />
-    <path d="M 0,880 Q 350,878 700,884" stroke-width="0.4" opacity="0.06" />
+    <path d="M 0,180 Q 350,176 700,184" stroke-width="0.5" opacity="0.07" />
+    <path d="M 0,360 Q 350,365 700,358" stroke-width="0.4" opacity="0.05" />
+    <path d="M 0,560 Q 350,555 700,564" stroke-width="0.5" opacity="0.06" />
+    <path d="M 0,760 Q 350,766 700,758" stroke-width="0.4" opacity="0.05" />
+    <path d="M 0,960 Q 350,956 700,964" stroke-width="0.45" opacity="0.06" />
+  </g>
+
+  <!-- Edge fiber wisps — short horizontal strokes near top + bottom,
+       suggesting fibers exposed by the deckled edge. Very faint. -->
+  <g stroke="#7A0E20" fill="none" stroke-linecap="round" stroke-width="0.4" opacity="0.08">
+    <line x1="40" y1="14" x2="92" y2="13" />
+    <line x1="180" y1="16" x2="240" y2="15" />
+    <line x1="430" y1="14" x2="510" y2="16" />
+    <line x1="600" y1="15" x2="660" y2="13" />
+    <line x1="50" y1="1186" x2="120" y2="1187" />
+    <line x1="260" y1="1185" x2="320" y2="1188" />
+    <line x1="450" y1="1187" x2="520" y2="1185" />
+    <line x1="610" y1="1186" x2="660" y2="1188" />
   </g>
 </svg>
 
@@ -59,7 +74,7 @@
     width: 100%;
     height: 100%;
     pointer-events: none;
-    opacity: 0.07;
+    opacity: 0.09;
     z-index: 0;
     border-radius: inherit;
   }

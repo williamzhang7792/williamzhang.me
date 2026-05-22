@@ -2,15 +2,15 @@
 
 /* ============================================================
    Design tokens — single source of truth.
-   Mirrored in @theme below for Tailwind utilities.
-   See DESIGN.md for the full rationale and "do not add" list.
+   v1.2: split body (Source Serif 4) from display (Cormorant) so each
+   font is used at the size it was designed for.
    ============================================================ */
 :root {
   /* surfaces */
   --bg-outer: #c9b998;       /* linen "desk" */
   --bg-paper: #f5eddd;       /* warm cream */
 
-  /* text — body deepened from #2C2C2C to #1C1C1C for v1.1 readability pass */
+  /* text */
   --text-body: #1c1c1c;
   --text-muted: #9a9a98;
 
@@ -27,7 +27,6 @@
   --transition-underline: 250ms ease;
 }
 
-/* Tailwind v4 token mirror so utilities like text-accent / bg-paper work. */
 @theme {
   --color-outer: #c9b998;
   --color-paper: #f5eddd;
@@ -36,23 +35,28 @@
   --color-accent: #7a0e20;
   --color-border-subtle: #d5d5d3;
 
-  --font-serif: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+  /* Body — designed for body text at small sizes. Uses opsz axis. */
+  --font-serif: "Source Serif 4", "Cormorant Garamond", Georgia, "Times New Roman", serif;
+  /* Display — used for h1 William Zhang + italic section labels + back link. */
+  --font-display: "Cormorant Garamond", Georgia, serif;
+
   --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
   --font-script: "Caveat", "Cormorant Garamond", cursive;
 }
 
 /* ============================================================
-   Base typography — v1.1 readability pass:
-   weight 400 → 500, color #2C2C2C → #1C1C1C, 18px → 17px,
-   line-height 1.7 → 1.65. Reads as "written" rather than typeset.
+   Base typography — v1.2: Source Serif 4 body @ 16px / weight 400.
+   The opsz axis auto-tunes the font for the rendered size; opacity
+   handled by the new edition.
    ============================================================ */
 html {
   background-color: var(--bg-outer);
   color: var(--text-body);
   font-family: var(--font-serif);
-  font-size: 17px;
-  font-weight: 500;
-  line-height: 1.65;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.55;
+  font-optical-sizing: auto;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
@@ -65,7 +69,7 @@ body {
 }
 
 h1, h2, h3, h4 {
-  font-family: var(--font-serif);
+  font-family: var(--font-display);
   font-weight: 500;
   margin: 0;
   line-height: 1.2;
@@ -83,47 +87,56 @@ a {
 
 /* ============================================================
    Layered shell — paper on linen.
-   v1.1: paper padding 80→56 desktop for tighter viewport fit.
+   v1.2: paper padding 56→40 desktop for tighter viewport fit;
+   deckled clip-path + faint warm rim for material edge feel.
    ============================================================ */
 .paper {
   position: relative;
   max-width: 700px;
   margin: 32px auto;
-  padding: 56px 60px;
+  padding: 40px 60px;
   min-height: calc(100vh - 64px);
   background-color: var(--bg-paper);
   border-radius: 2px;
-  box-shadow: var(--paper-shadow);
-  /* The only cursor effect — see §3 of plan. */
+  box-shadow:
+    var(--paper-shadow),
+    inset 0 0 0 1px color-mix(in srgb, var(--accent) 4%, transparent);
   cursor: crosshair;
-  /* So the washi texture absolute-positions inside this stacking context. */
   isolation: isolate;
+  /* Subtle deckle on top + bottom edges — variation only 1-5px so it reads
+     as straight at a glance but rewards close inspection. */
+  clip-path: polygon(
+    0% 4px, 12% 1px, 24% 5px, 36% 2px, 48% 4px, 60% 1px, 72% 5px, 84% 2px, 100% 4px,
+    100% calc(100% - 4px),
+    88% calc(100% - 1px), 76% calc(100% - 5px), 64% calc(100% - 2px),
+    52% calc(100% - 4px), 40% calc(100% - 1px), 28% calc(100% - 5px), 16% calc(100% - 2px),
+    0% calc(100% - 4px)
+  );
 }
 
-/* The body of the paper — all real content lives here, above the washi overlay. */
 .paper > * {
   position: relative;
   z-index: 1;
 }
 
 /* ============================================================
-   Section labels — italic lowercase burgundy.
-   v1.1: tighter top margin for viewport fit.
+   Section labels — italic lowercase burgundy in Cormorant.
+   v1.2: tighter top/bottom margins.
    ============================================================ */
 .section-label {
-  font-family: var(--font-serif);
+  font-family: var(--font-display);
   font-style: italic;
   font-weight: 500;
   font-size: 18px;
   color: var(--accent);
-  margin-top: 28px;
-  margin-bottom: 8px;
+  margin-top: 20px;
+  margin-bottom: 4px;
   letter-spacing: 0.01em;
 }
 
 /* ============================================================
-   Shared link primitive — L→R underline grow.
-   Applied to: bullet links, nav, footer socials, note titles.
+   .link-underline — subtle L→R underline-grow primitive.
+   Used for nav, footer socials, note titles. Stays for v1.2.
    ============================================================ */
 .link-underline {
   position: relative;
@@ -154,6 +167,33 @@ a {
 }
 
 /* ============================================================
+   .link-strong — bold + ALWAYS-VISIBLE underline + hover emphasis.
+   Used for bullet entity labels and the UWaterloo bio link.
+   The persistent underline tells the reader "this is a link" before
+   they hover; hover kicks color + underline to full burgundy.
+   ============================================================ */
+.link-strong {
+  font-weight: 700;
+  color: var(--text-body);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--accent) 30%, transparent);
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+  transition:
+    color var(--transition-base),
+    text-decoration-color var(--transition-base),
+    text-decoration-thickness var(--transition-base);
+}
+
+.link-strong:hover,
+.link-strong:focus-visible {
+  color: var(--accent);
+  text-decoration-color: var(--accent);
+  text-decoration-thickness: 1.5px;
+  outline: none;
+}
+
+/* ============================================================
    Skip link — keyboard users can jump straight to content.
    ============================================================ */
 .skip-link {
@@ -176,33 +216,34 @@ a {
 }
 
 /* ============================================================
-   Mobile — single breakpoint at 720px (per §3).
+   Mobile — single breakpoint at 720px.
    ============================================================ */
 @media (max-width: 720px) {
   .paper {
     margin: 16px auto;
-    padding: 40px 24px;
-    box-shadow: var(--paper-shadow-mobile);
+    padding: 32px 24px;
+    box-shadow:
+      var(--paper-shadow-mobile),
+      inset 0 0 0 1px color-mix(in srgb, var(--accent) 4%, transparent);
     min-height: calc(100vh - 32px);
   }
 }
 
-/* Touch / no-hover devices: drop the crosshair (it looks broken on tap). */
+/* Touch / no-hover devices: drop the crosshair. */
 @media (hover: none) {
   .paper {
     cursor: default;
   }
 }
 
-/* High-DPI: drop washi opacity slightly so the noise doesn't look harsh.
-   v1.1: raised baseline, so retina cap is correspondingly higher. */
+/* High-DPI: drop washi opacity slightly so the noise doesn't look harsh. */
 @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
   .washi {
-    opacity: 0.05 !important;
+    opacity: 0.07 !important;
   }
 }
 
-/* Respect reduced motion for the underline animation and any future motion. */
+/* Respect reduced motion. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
