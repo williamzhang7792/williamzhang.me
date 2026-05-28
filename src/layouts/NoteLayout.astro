@@ -206,6 +206,18 @@ const formatLong = (d: Date) =>
     padding: 0;
   }
 
+  .note-body :global(.mermaid-diagram) {
+    margin: 1.8em auto;
+    max-width: 100%;
+    overflow-x: auto;
+    text-align: center;
+  }
+
+  .note-body :global(.mermaid-diagram svg) {
+    max-width: 100%;
+    height: auto;
+  }
+
   .back {
     margin-top: 48px;
     font-style: italic;
@@ -215,3 +227,62 @@ const formatLong = (d: Date) =>
     color: var(--text-muted);
   }
 </style>
+
+<script>
+  const mermaidPres = document.querySelectorAll('pre[data-language="mermaid"]');
+  const mermaidCodes = document.querySelectorAll("pre code.language-mermaid");
+  const hasMermaid = mermaidPres.length > 0 || mermaidCodes.length > 0;
+
+  if (hasMermaid) {
+    const mermaid = (await import("mermaid")).default;
+
+    const css = getComputedStyle(document.documentElement);
+    const tok = (n: string) => css.getPropertyValue(n).trim();
+
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: "base",
+      themeVariables: {
+        background: tok("--bg-paper"),
+        primaryColor: tok("--bg-paper"),
+        primaryTextColor: tok("--text-body"),
+        primaryBorderColor: tok("--accent"),
+        lineColor: tok("--text-muted"),
+        secondaryColor: tok("--bg-outer"),
+        tertiaryColor: tok("--bg-paper"),
+        secondaryTextColor: tok("--text-body"),
+        tertiaryTextColor: tok("--text-body"),
+        nodeBorder: tok("--accent"),
+        clusterBkg: "transparent",
+        clusterBorder: tok("--border-subtle"),
+        edgeLabelBackground: tok("--bg-paper"),
+        fontFamily: "Source Serif 4, Georgia, serif",
+        fontSize: "15px",
+      },
+    });
+
+    const renderBlock = async (code: string, replaceEl: Element, index: number) => {
+      const id = `mmd-${index}-${Date.now()}`;
+      const wrap = document.createElement("div");
+      wrap.className = "mermaid-diagram";
+      replaceEl.replaceWith(wrap);
+      try {
+        const { svg } = await mermaid.render(id, code);
+        wrap.innerHTML = svg;
+      } catch {
+        wrap.textContent = "(mermaid render error)";
+      }
+    };
+
+    let index = 0;
+    for (const pre of mermaidPres) {
+      await renderBlock(pre.textContent ?? "", pre, index++);
+    }
+
+    for (const block of mermaidCodes) {
+      const code = block.textContent ?? "";
+      const parent = block.parentElement;
+      if (parent) await renderBlock(code, parent, index++);
+    }
+  }
+</script>

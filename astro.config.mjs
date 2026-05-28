@@ -4,7 +4,7 @@ import sitemap from "@astrojs/sitemap";
 import tailwindcss from "@tailwindcss/vite";
 
 // Surfaced as import.meta.env.BUILD_DATE inside components.
-const BUILD_DATE = new Date().toISOString().slice(0, 10);
+const BUILD_DATE = "may 25 2026";
 
 // https://astro.build/config
 export default defineConfig({

@@ -32,29 +32,29 @@ export const about: About = {
   doing: [
     {
       icon: "GraduationCap",
-      parts: ["Seven CAS exams passed (FCAS-track)"],
+      parts: ["Passed seven actuarial exams in a year"],
     },
     {
       icon: "Briefcase",
       parts: [
-        "Actuarial Analyst Intern · ",
-        { label: "Intact", href: "https://www.intact.ca" },
+        "Actuarial Intern · ",
+        { label: "Intact", href: "https://careers.intactfc.com/" },
         " (Jan-Apr 2026)",
       ],
     },
     {
       icon: "Briefcase",
       parts: [
-        "Actuarial Analyst Intern · ",
-        { label: "Pacific Life Re", href: "https://www.pacificlifere.com" },
+        "Actuarial Intern · ",
+        { label: "Pacific Life Re", href: "https://www.pacificlifere.com/" },
         " (Summer 2025)",
       ],
     },
     {
       icon: "Code",
       parts: [
-        "Google Summer of Code contributor on R Project (",
-        { label: "gfpop", href: "https://github.com/vrunge/gfpop" },
+        "Software Developer @ Google Summer of Code (",
+        { label: "gfpop", href: "https://arxiv.org/abs/2002.03646" },
         ")",
       ],
     },
@@ -62,47 +62,35 @@ export const about: About = {
       icon: "Trophy",
       parts: [
         "Directing ",
-        { label: "ASNA", href: "https://www.asna.ca" },
-        "'s national case competition (96 teams in 2026)",
+        { label: "ASNA", href: "https://anea-asna.ca/home/" },
+        "'s national case competition (scaled from 37 to 96 teams in 2026)",
       ],
     },
     {
       icon: "Award",
       parts: [
         "1st · ",
-        { label: "SOA Research Challenge", href: "https://www.soa.org/research/research-challenge/" },
+        {
+          label: "SOA Research Challenge",
+          href: "https://www.soa.org/research/opportunities/2025-student-research-case-study-challenge/",
+        },
         " (2025, 68 international teams)",
-      ],
-    },
-    {
-      icon: "Medal",
-      parts: [
-        "1st · ",
-        { label: "CPA Case Challenge", href: "https://www.cpacanada.ca" },
-        " (2024, 75 national teams)",
       ],
     },
   ],
   thinking: [
     {
+      icon: "Network",
+      parts: [
+        { label: "AI agent liability", href: "/notes/a-score-is-not-a-rate/" },
+        " — what I'm seeing and expecting",
+      ],
+    },
+    {
       icon: "GitBranch",
       parts: [
         { label: "The actuarial bifurcation", href: "/notes/actuarial-bifurcation/" },
         " — what the integrated path means",
-      ],
-    },
-    {
-      icon: "Network",
-      parts: [
-        { label: "AI agent liability", href: "/notes/ai-agent-liability/" },
-        " — pricing where the toolkit doesn't apply",
-      ],
-    },
-    {
-      icon: "Building2",
-      parts: [
-        { label: "Modern MGAs", href: "/notes/modern-mgas/" },
-        " — what they change about actuarial work",
       ],
     },
     {

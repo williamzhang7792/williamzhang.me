@@ -39,8 +39,11 @@
   </button>
 
   <div id="bm-canvas-wrap" class="bm-canvas-wrap" hidden>
-    <p class="bm-help">
+    <p class="bm-help bm-help-desktop">
       <span class="bm-help-key">space</span> or <span class="bm-help-key">click</span> to hit.
+    </p>
+    <p class="bm-help bm-help-mobile">
+      <span class="bm-help-key">tap</span> to hit.
     </p>
     <div class="bm-canvas-stage">
       <canvas id="bm-canvas" width="400" height="300" aria-label="Badminton rally game"></canvas>
@@ -120,6 +123,20 @@
     font-size: 17px;
     color: var(--text-muted);
     font-style: italic;
+  }
+
+  .bm-help-mobile {
+    display: none;
+  }
+
+  @media (hover: none) {
+    .bm-help-desktop {
+      display: none;
+    }
+
+    .bm-help-mobile {
+      display: block;
+    }
   }
 
   .bm-help-key {
