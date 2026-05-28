@@ -3,14 +3,16 @@
  * WashiTexture — paper-fiber noise overlay using SVG feTurbulence,
  * with multiple fold creases + edge fiber wisps for a more material feel.
  *
- * v1.2 tuning:
- *   - opacity 0.07 → 0.09 (more material presence; Source Serif body at
- *     400 weight tolerates more background activity)
- *   - 5 fold creases (was 3) at varied positions and slight tilts
- *   - 4 short edge wisps near top + bottom suggesting paper fibers exposed
- *     by the deckled edge
+ * Three layers, all pointer-events: none:
+ *   1. Main grain (stretched, viewBox 700×1200) — turbulent noise + fold
+ *      creases scaled to whatever paper height the page produces.
+ *   2. Top edge strip (fixed viewBox 700×24, absolute top:0 height:24px)
+ *      — burgundy fiber wisps that always sit ~13-16 px below the deckle
+ *      regardless of article length.
+ *   3. Bottom edge strip (mirror of (2), absolute bottom:0).
  *
- * pointer-events: none so it never intercepts clicks/hover.
+ * Decoupling the wisps from the stretched grain SVG means they read as
+ * actual edge texture on long notes, not as ambient mid-page ink.
  */
 ---
 
@@ -53,17 +55,42 @@
     <path d="M 0,960 Q 350,956 700,964" stroke-width="0.45" opacity="0.06" />
   </g>
 
-  <!-- Edge fiber wisps — short horizontal strokes near top + bottom,
-       suggesting fibers exposed by the deckled edge. Very faint. -->
+</svg>
+
+<!-- Top edge fiber wisps — fixed 24px strip pinned to the top of the paper
+     so the wisps always sit just below the deckle, regardless of article
+     length. Stretched horizontally (preserveAspectRatio: none) but height
+     stays at 24 css px. -->
+<svg
+  class="washi-edge washi-top"
+  aria-hidden="true"
+  focusable="false"
+  preserveAspectRatio="none"
+  viewBox="0 0 700 24"
+  xmlns="http://www.w3.org/2000/svg"
+>
   <g stroke="#7A0E20" fill="none" stroke-linecap="round" stroke-width="0.4" opacity="0.08">
     <line x1="40" y1="14" x2="92" y2="13" />
     <line x1="180" y1="16" x2="240" y2="15" />
     <line x1="430" y1="14" x2="510" y2="16" />
     <line x1="600" y1="15" x2="660" y2="13" />
-    <line x1="50" y1="1186" x2="120" y2="1187" />
-    <line x1="260" y1="1185" x2="320" y2="1188" />
-    <line x1="450" y1="1187" x2="520" y2="1185" />
-    <line x1="610" y1="1186" x2="660" y2="1188" />
+  </g>
+</svg>
+
+<!-- Bottom edge fiber wisps — mirror of the top strip, pinned to bottom. -->
+<svg
+  class="washi-edge washi-bottom"
+  aria-hidden="true"
+  focusable="false"
+  preserveAspectRatio="none"
+  viewBox="0 0 700 24"
+  xmlns="http://www.w3.org/2000/svg"
+>
+  <g stroke="#7A0E20" fill="none" stroke-linecap="round" stroke-width="0.4" opacity="0.08">
+    <line x1="50" y1="10" x2="120" y2="11" />
+    <line x1="260" y1="9" x2="320" y2="12" />
+    <line x1="450" y1="11" x2="520" y2="9" />
+    <line x1="610" y1="10" x2="660" y2="12" />
   </g>
 </svg>
 
@@ -77,5 +104,26 @@
     opacity: 0.09;
     z-index: 0;
     border-radius: inherit;
+  }
+
+  /* Edge strips: fixed pixel height pinned to top/bottom so the wisps
+     anchor to the actual deckle, not a percentage of paper length.
+     opacity matches .washi so total composite reads the same as v1. */
+  .washi-edge {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: 24px;
+    pointer-events: none;
+    opacity: 0.09;
+    z-index: 0;
+  }
+
+  .washi-top {
+    top: 0;
+  }
+
+  .washi-bottom {
+    bottom: 0;
   }
 </style>
