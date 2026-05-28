@@ -2,49 +2,34 @@
 const pathname = Astro.url.pathname;
 const isAbout = pathname === "/" || pathname === "";
 const isNotes = pathname.startsWith("/notes");
-const isNoteDetail =
-  pathname.startsWith("/notes/") && pathname !== "/notes/" && pathname !== "/notes";
 ---
 
 <nav class="site-nav" aria-label="Primary">
-  <div class="nav-primary">
-    <a
-      href="/"
-      class:list={["nav-link link-underline", { active: isAbout }]}
-      aria-current={isAbout ? "page" : undefined}
-    >
-      about
-    </a>
-    <span class="nav-sep" aria-hidden="true">/</span>
-    <a
-      href="/notes/"
-      class:list={["nav-link link-underline", { active: isNotes }]}
-      aria-current={isNotes ? "page" : undefined}
-    >
-      notes
-    </a>
-  </div>
-  {isNoteDetail && (
-    <a href="/notes/" class="nav-back link-underline">← all notes</a>
-  )}
+  <a
+    href="/"
+    class:list={["nav-link link-underline", { active: isAbout }]}
+    aria-current={isAbout ? "page" : undefined}
+  >
+    about
+  </a>
+  <span class="nav-sep" aria-hidden="true">/</span>
+  <a
+    href="/notes/"
+    class:list={["nav-link link-underline", { active: isNotes }]}
+    aria-current={isNotes ? "page" : undefined}
+  >
+    notes
+  </a>
 </nav>
 
 <style>
   .site-nav {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    width: 100%;
     gap: 14px;
     margin-bottom: 24px;
     font-size: 15px;
     color: var(--text-body);
-  }
-
-  .nav-primary {
-    display: flex;
-    align-items: center;
-    gap: 14px;
   }
 
   .nav-link {
@@ -62,18 +47,5 @@ const isNoteDetail =
     color: var(--text-muted);
     font-style: normal;
     user-select: none;
-  }
-
-  .nav-back {
-    font-style: italic;
-    font-weight: 500;
-    color: var(--text-muted);
-    font-size: 15px;
-  }
-
-  .nav-back:hover,
-  .nav-back:focus-visible {
-    color: var(--accent);
-    outline: none;
   }
 </style>
