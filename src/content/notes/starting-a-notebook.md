@@ -11,12 +11,11 @@ I'm planning to write about three kinds of things mostly. The first is something
 
 The second is emerging risk, particularly the methodology questions around AI agent liability insurance, where the data is sparse, the failure modes are novel, and the existing actuarial toolkit only half-applies. There seems to be more written about whether AI risk is insurable than about how you'd actually price it, and I'd like to try to think through some of the "how" without much confidence that I'll land somewhere useful.
 
-The third is just whatever I happen to be reading. 
+The third is just whatever I happen to be reading.
 
-what's coming
-A few things on the runway:
+## A few things on the runway:
 
-What "uninsurable" actually means. Trying to separate genuine blockers from things the market just hasn't figured out how to price yet.
-Modern MGAs. What the model lets newer entrants do that traditional carriers can't, and where the limits of that show up.
+- **What "uninsurable" actually means.** Trying to separate genuine blockers from things the market just hasn't figured out how to price yet.
+- **Modern MGAs.** What the model lets newer entrants do that traditional carriers can't, and where the limits of that show up.
 
 If this has been sitting untouched for months by the time you found it, oops. The rest of the site is perhaps a better record of what I'm up to.
