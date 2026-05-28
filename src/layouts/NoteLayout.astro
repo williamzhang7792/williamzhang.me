@@ -16,6 +16,8 @@ const { title, description, date, upcoming = false } = Astro.props;
 <BaseLayout title={`${title} — William Zhang`} description={description} bodyClass="note-page">
   <ReadingProgress />
 
+  <a href="/notes/" class="note-back-top link-underline" aria-label="All notes">←</a>
+
   <article class="note">
     <header class="note-header">
       <h1 class="note-title">{title}</h1>
@@ -27,7 +29,7 @@ const { title, description, date, upcoming = false } = Astro.props;
     </div>
   </article>
 
-  <p class="back">
+  <p class="back back--collapsed">
     <a href="/notes/" class="link-underline back-link">← all notes</a>
   </p>
 </BaseLayout>
@@ -210,9 +212,39 @@ const { title, description, date, upcoming = false } = Astro.props;
     height: auto;
   }
 
+  /* Top-right back — arrow only; scrolls with page (not fixed). */
+  .note-back-top {
+    position: absolute;
+    top: 32px;
+    right: 60px;
+    z-index: 2;
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 500;
+    font-size: 15px;
+    color: var(--text-muted);
+    text-decoration: none;
+  }
+
+  .note-back-top:hover,
+  .note-back-top:focus-visible {
+    color: var(--accent);
+    outline: none;
+  }
+
+  @media (max-width: 720px) {
+    .note-back-top {
+      right: 24px;
+    }
+  }
+
   .back {
     margin-top: 48px;
     font-style: italic;
+  }
+
+  .back.back--collapsed {
+    display: none;
   }
 
   .back-link {
@@ -221,6 +253,30 @@ const { title, description, date, upcoming = false } = Astro.props;
 </style>
 
 <script>
+  const updateBackVisibility = () => {
+    const topBack = document.querySelector(".note-back-top");
+    const bottomBack = document.querySelector(".back");
+    if (!topBack || !bottomBack) return;
+
+    const gap = bottomBack.offsetTop - topBack.offsetTop;
+    const showBottom = gap > window.innerHeight;
+    bottomBack.classList.toggle("back--collapsed", !showBottom);
+  };
+
+  let backTicking = false;
+  const scheduleBackVisibility = () => {
+    if (!backTicking) {
+      requestAnimationFrame(() => {
+        updateBackVisibility();
+        backTicking = false;
+      });
+      backTicking = true;
+    }
+  };
+
+  scheduleBackVisibility();
+  window.addEventListener("resize", scheduleBackVisibility, { passive: true });
+
   const mermaidPres = document.querySelectorAll('pre[data-language="mermaid"]');
   const mermaidCodes = document.querySelectorAll("pre code.language-mermaid");
   const hasMermaid = mermaidPres.length > 0 || mermaidCodes.length > 0;
@@ -276,5 +332,7 @@ const { title, description, date, upcoming = false } = Astro.props;
       const parent = block.parentElement;
       if (parent) await renderBlock(code, parent, index++);
     }
+
+    scheduleBackVisibility();
   }
 </script>
