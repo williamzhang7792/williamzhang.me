@@ -88,7 +88,11 @@ a {
 /* ============================================================
    Layered shell — paper on linen.
    v1.2: paper padding 56→40 desktop for tighter viewport fit;
-   deckled clip-path + faint warm rim for material edge feel.
+   deckled clip-path for material edge feel.
+   v1.8.9: dropped the inset accent border — the 1px burgundy
+   inner rim was anti-aliasing into visible "ink blobs" at the
+   topmost clip-path vertices (12% and 60% from left). Edge ink
+   is now carried only by .washi-edge wisps below the deckle.
    ============================================================ */
 .paper {
   position: relative;
@@ -101,9 +105,7 @@ a {
   min-height: calc(100vh - 112px);
   background-color: var(--bg-paper);
   border-radius: 2px;
-  box-shadow:
-    var(--paper-shadow),
-    inset 0 0 0 1px color-mix(in srgb, var(--accent) 4%, transparent);
+  box-shadow: var(--paper-shadow);
   cursor: crosshair;
   isolation: isolate;
   /* Subtle deckle on top + bottom edges — variation only 1-5px so it reads
@@ -154,14 +156,10 @@ body.notes-index .paper {
 
 @keyframes page-shadow-in {
   from {
-    box-shadow:
-      0 0 4px rgba(0, 0, 0, 0.04),
-      inset 0 0 0 1px color-mix(in srgb, var(--accent) 4%, transparent);
+    box-shadow: 0 0 4px rgba(0, 0, 0, 0.04);
   }
   to {
-    box-shadow:
-      var(--paper-shadow),
-      inset 0 0 0 1px color-mix(in srgb, var(--accent) 4%, transparent);
+    box-shadow: var(--paper-shadow);
   }
 }
 
@@ -298,9 +296,7 @@ body.notes-index .paper {
   .paper {
     margin: 32px auto;
     padding: 32px 24px;
-    box-shadow:
-      var(--paper-shadow-mobile),
-      inset 0 0 0 1px color-mix(in srgb, var(--accent) 4%, transparent);
+    box-shadow: var(--paper-shadow-mobile);
     min-height: calc(100vh - 64px);
   }
 }
