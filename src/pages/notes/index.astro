@@ -1,6 +1,7 @@
 ---
 import BaseLayout from "~/layouts/BaseLayout.astro";
 import { getCollection } from "astro:content";
+import { formatDate } from "~/lib/formatDate";
 
 const all = await getCollection("notes");
 const isProd = import.meta.env.PROD;
@@ -12,15 +13,6 @@ const notes = all
     }
     return b.data.date.valueOf() - a.data.date.valueOf();
   });
-
-const formatDate = (d: Date) => {
-  // Use UTC getters so a frontmatter date like `2026-05-21` always renders
-  // as 2026.05.21 regardless of the build server's timezone.
-  const y = d.getUTCFullYear();
-  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
-  const day = String(d.getUTCDate()).padStart(2, "0");
-  return `${y}.${m}.${day}`;
-};
 ---
 
 <BaseLayout

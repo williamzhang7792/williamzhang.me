@@ -1,24 +1,16 @@
 ---
 import BaseLayout from "~/layouts/BaseLayout.astro";
 import ReadingProgress from "~/components/ReadingProgress.astro";
+import { formatDate } from "~/lib/formatDate";
 
 export interface Props {
   title: string;
   description: string;
   date: Date;
+  upcoming?: boolean;
 }
 
-const { title, description, date } = Astro.props;
-
-const formatLong = (d: Date) =>
-  // timeZone: UTC pins the displayed date to the frontmatter value, avoiding
-  // off-by-one shifts when the build server's local time crosses midnight.
-  d.toLocaleDateString("en-CA", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    timeZone: "UTC",
-  });
+const { title, description, date, upcoming = false } = Astro.props;
 ---
 
 <BaseLayout title={`${title} — William Zhang`} description={description} bodyClass="note-page">
@@ -27,7 +19,7 @@ const formatLong = (d: Date) =>
   <article class="note">
     <header class="note-header">
       <h1 class="note-title">{title}</h1>
-      <p class="note-date">{formatLong(date)}</p>
+      <p class="note-date">{upcoming ? "upcoming" : formatDate(date)}</p>
     </header>
 
     <div class="note-body">
