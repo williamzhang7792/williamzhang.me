@@ -82,8 +82,8 @@ export const about: About = {
     {
       icon: "Network",
       parts: [
-        { label: "AI agent liability", href: "/notes/a-score-is-not-a-rate/" },
-        " — what I'm seeing and expecting",
+        { label: "AI agent risk", href: "/notes/a-score-is-not-a-rate/" },
+        " — what I'm noticing and hoping for",
       ],
     },
     {

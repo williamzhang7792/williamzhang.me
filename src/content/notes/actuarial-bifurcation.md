@@ -3,6 +3,7 @@ title: "the actuarial bifurcation"
 date: 2026-02-15
 description: "Drafting in progress. The classical and integrated tracks, and the work that lives at the intersection."
 draft: false
+upcoming: true
 ---
 
 Drafting in progress. I'll come back to this soon.

@@ -6,7 +6,12 @@ const all = await getCollection("notes");
 const isProd = import.meta.env.PROD;
 const notes = all
   .filter((entry) => !isProd || !entry.data.draft)
-  .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+  .sort((a, b) => {
+    if (a.data.upcoming !== b.data.upcoming) {
+      return a.data.upcoming ? 1 : -1;
+    }
+    return b.data.date.valueOf() - a.data.date.valueOf();
+  });
 
 const formatDate = (d: Date) => {
   // Use UTC getters so a frontmatter date like `2026-05-21` always renders
@@ -35,7 +40,9 @@ const formatDate = (d: Date) => {
       {notes.map((entry) => (
         <li class="note-row">
           <a href={`/notes/${entry.id}/`} class="note-link">
-            <span class="note-date">{formatDate(entry.data.date)}</span>
+            <span class="note-date">
+              {entry.data.upcoming ? "upcoming" : formatDate(entry.data.date)}
+            </span>
             <span class="note-title link-underline">{entry.data.title}</span>
           </a>
         </li>
