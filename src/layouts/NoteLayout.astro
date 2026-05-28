@@ -215,13 +215,13 @@ const { title, description, date, upcoming = false } = Astro.props;
   /* Top-right back — arrow only; scrolls with page (not fixed). */
   .note-back-top {
     position: absolute;
-    top: 32px;
+    top: 28px;
     right: 60px;
     z-index: 2;
     font-family: var(--font-display);
-    font-style: italic;
     font-weight: 500;
-    font-size: 15px;
+    font-size: 26px;
+    line-height: 1;
     color: var(--text-muted);
     text-decoration: none;
   }
@@ -256,9 +256,11 @@ const { title, description, date, upcoming = false } = Astro.props;
   const updateBackVisibility = () => {
     const topBack = document.querySelector(".note-back-top");
     const bottomBack = document.querySelector(".back");
-    if (!topBack || !bottomBack) return;
+    const article = document.querySelector("article.note");
+    if (!topBack || !bottomBack || !article) return;
 
-    const gap = bottomBack.offsetTop - topBack.offsetTop;
+    const articleBottom = article.offsetTop + article.offsetHeight;
+    const gap = articleBottom - topBack.offsetTop;
     const showBottom = gap > window.innerHeight;
     bottomBack.classList.toggle("back--collapsed", !showBottom);
   };
