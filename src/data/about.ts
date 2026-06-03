@@ -35,6 +35,14 @@ export const about: About = {
       parts: ["Passed seven actuarial exams in a year"],
     },
     {
+      icon: "Code",
+      parts: [
+        "Software Developer @ Google Summer of Code (",
+        { label: "gfpop", href: "https://arxiv.org/abs/2002.03646" },
+        ")",
+      ],
+    },
+    {
       icon: "Briefcase",
       parts: [
         "Actuarial Intern · ",
@@ -48,14 +56,6 @@ export const about: About = {
         "Actuarial Intern · ",
         { label: "Pacific Life Re", href: "https://www.pacificlifere.com/" },
         " (Summer 2025)",
-      ],
-    },
-    {
-      icon: "Code",
-      parts: [
-        "Software Developer @ Google Summer of Code (",
-        { label: "gfpop", href: "https://arxiv.org/abs/2002.03646" },
-        ")",
       ],
     },
     {
