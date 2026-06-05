@@ -63,7 +63,7 @@ export const about: About = {
       parts: [
         "Directing ",
         { label: "ASNA", href: "https://anea-asna.ca/home/" },
-        "'s national case competition (scaled from 37 to 96 teams)",
+        "'s national case competition (scaled from 37 to 102 teams)",
       ],
     },
     {
