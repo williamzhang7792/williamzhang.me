@@ -11,7 +11,7 @@
 export type TextPart = string | { label: string; href: string };
 
 export type Bullet = {
-  /** Lucide icon PascalCase name (e.g. "Briefcase") | the literal "shuttlecock" */
+  /** Lucide icon PascalCase name (e.g. "Briefcase") | custom: "shuttlecock", "corgi", "uwaterloo" */
   icon: string;
   parts: TextPart[];
 };
@@ -20,6 +20,7 @@ export type About = {
   name: string;
   location: string;
   positioning: string;
+  bio: Bullet[];
   doing: Bullet[];
   thinking: Bullet[];
 };
@@ -29,6 +30,22 @@ export const about: About = {
   location: "Waterloo, ON",
   positioning:
     "Stats and computing at Waterloo. Seven CAS exams in, on track for FCAS. Spend my time thinking about where actuarial work meets modern technology — especially in cyber and AI risk.",
+  bio: [
+    {
+      icon: "corgi",
+      parts: [
+        "Quantitative Researcher @ ",
+        { label: "Corgi", href: "https://corgi.insure/" },
+      ],
+    },
+    {
+      icon: "uwaterloo",
+      parts: [
+        "Math @ ",
+        { label: "UWaterloo", href: "https://uwaterloo.ca/" },
+      ],
+    },
+  ],
   doing: [
     {
       icon: "GraduationCap",
@@ -63,7 +80,7 @@ export const about: About = {
       parts: [
         "Directing ",
         { label: "ASNA", href: "https://anea-asna.ca/home/" },
-        "'s national case competition (scaled from 37 to 102 teams)",
+        "'s case competition (scaled from 37 to 102 teams)",
       ],
     },
     {

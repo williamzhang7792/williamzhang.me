@@ -10,12 +10,10 @@ const isLinkPart = (p: TextPart): p is { label: string; href: string } =>
   typeof p === "object" && p !== null && "href" in p;
 ---
 
-<li class="bullet">
-  <span class="arrow" aria-hidden="true">↳</span>
+<p class="bio-line">
+  <Icon name={icon} class="bio-icon" />
 
-  <Icon name={icon} class="bullet-icon" />
-
-  <span class="bullet-text">
+  <span class="bio-text">
     {parts.map((part) =>
       isLinkPart(part) ? (
         <a
@@ -25,29 +23,25 @@ const isLinkPart = (p: TextPart): p is { label: string; href: string } =>
           target={part.href.startsWith("http") ? "_blank" : undefined}
         >{part.label}</a>
       ) : (
-        <span class="bullet-plain">{part}</span>
+        <span class="bio-plain">{part}</span>
       ),
     )}
   </span>
-</li>
+</p>
 
 <style>
-  .bullet {
+  /* Same geometry as .bullet (minus the arrow) so the bio icons sit in the
+     same visual system as the list icons below. */
+  .bio-line {
     display: flex;
     align-items: baseline;
     gap: 8px;
-    padding: 2px 0;
+    margin: 0 0 8px 0;
     font-size: 16px;
-    line-height: 1.5;
+    line-height: 1.55;
   }
 
-  .arrow {
-    color: var(--text-muted);
-    flex-shrink: 0;
-    user-select: none;
-  }
-
-  .bullet-icon {
+  .bio-icon {
     color: var(--text-muted);
     flex-shrink: 0;
     width: 16px;
@@ -56,23 +50,11 @@ const isLinkPart = (p: TextPart): p is { label: string; href: string } =>
     align-self: center;
   }
 
-  .bullet-icon :global(svg) {
-    stroke-width: 1.5;
-  }
-
-  .bullet-text {
+  .bio-text {
     color: var(--text-body);
   }
 
-  .bullet-plain {
+  .bio-plain {
     /* explicit class so the schema reads symmetrically; no extra styles needed. */
-  }
-
-  /* Short laptop viewports: tighter bullet padding so all bullets +
-     footer fit above the fold. */
-  @media (min-width: 721px) and (max-height: 880px) {
-    .bullet {
-      padding: 1px 0;
-    }
   }
 </style>

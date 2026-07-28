@@ -1,5 +1,6 @@
 ---
 import BaseLayout from "~/layouts/BaseLayout.astro";
+import BioLine from "~/components/BioLine.astro";
 import Bullet from "~/components/Bullet.astro";
 import BadmintonGame from "~/components/BadmintonGame.astro";
 import { about } from "~/data/about";
@@ -13,14 +14,7 @@ const title = `${about.name}`;
     <p class="location">{about.location}</p>
   </header>
 
-  <p class="bio-line">
-    Computing &amp; Math at <a
-      href="https://uwaterloo.ca/"
-      class="link-strong"
-      rel="noopener noreferrer"
-      target="_blank"
-    >UWaterloo</a>
-  </p>
+  {about.bio.map((b) => <BioLine {...b} />)}
 
   <section aria-labelledby="doing-label">
     <h2 id="doing-label" class="section-label">i've been doing:</h2>
@@ -59,13 +53,6 @@ const title = `${about.name}`;
     color: var(--text-muted);
     margin: 0;
     font-size: 14px;
-  }
-
-  .bio-line {
-    margin: 0 0 8px 0;
-    font-size: 16px;
-    line-height: 1.55;
-    color: var(--text-body);
   }
 
   .bullets {
