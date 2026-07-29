@@ -17,14 +17,14 @@ const title = `${about.name}`;
   {about.bio.map((b) => <BioLine {...b} />)}
 
   <section aria-labelledby="doing-label">
-    <h2 id="doing-label" class="section-label">i've been doing:</h2>
+    <h2 id="doing-label" class="section-label">on paper:</h2>
     <ul class="bullets">
       {about.doing.map((b) => <Bullet {...b} />)}
     </ul>
   </section>
 
   <section aria-labelledby="thinking-label">
-    <h2 id="thinking-label" class="section-label">i've been thinking about:</h2>
+    <h2 id="thinking-label" class="section-label">in my head:</h2>
     <ul class="bullets">
       {about.thinking.map((b) => <Bullet {...b} />)}
     </ul>
