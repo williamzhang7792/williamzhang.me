@@ -444,7 +444,9 @@
       gameOver = true;
       finalRallyEl!.textContent = String(rally);
       overlayEl!.removeAttribute("hidden");
-      playAgainEl!.focus();
+      // preventScroll: a viewer who scrolled off mid-rally must not get
+      // yanked back down when the round ends.
+      playAgainEl!.focus({ preventScroll: true });
     }
 
     function attemptSwing() {
