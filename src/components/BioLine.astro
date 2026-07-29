@@ -11,7 +11,7 @@ const isLinkPart = (p: TextPart): p is { label: string; href: string } =>
 ---
 
 <p class="bio-line">
-  <Icon name={icon} class="bio-icon" />
+  <Icon name={icon} class={`bio-icon bio-icon--${icon}`} />
 
   <span class="bio-text">
     {parts.map((part) =>
@@ -48,6 +48,14 @@ const isLinkPart = (p: TextPart): p is { label: string; href: string } =>
     height: 16px;
     transform: translateY(2px);
     align-self: center;
+  }
+
+  /* Optical nudge: the shield is a solid symmetric outline, so its bbox
+     center IS its visual center — it reads lower than the corgi, whose
+     thin legs make its mass sit high. Glyph is already at the top of its
+     viewBox; the rest of the correction has to live here. */
+  .bio-icon--uwaterloo {
+    transform: translateY(-0.5px);
   }
 
   .bio-text {
