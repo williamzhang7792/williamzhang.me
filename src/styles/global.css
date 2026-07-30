@@ -119,6 +119,23 @@ a {
   );
 }
 
+/* Hidden ink under the deckle — a 2px accent strip pinned to the paper's
+   top edge, revealed only where the clip-path notches dip to 1-2px. Born
+   as an accident: the note pages' ReadingProgress bar (position: fixed)
+   was captured by the page-flip animation's persistent transform and
+   ended up riding the paper top, leaking through the notches. Everyone
+   liked the ink, nobody ever saw the progress bar, so the accident is
+   now load-bearing and deliberate — on every page, at any length. */
+.paper::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: var(--accent);
+}
+
 .paper > * {
   position: relative;
   z-index: 1;

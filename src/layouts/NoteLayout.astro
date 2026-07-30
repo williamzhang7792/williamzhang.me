@@ -1,6 +1,5 @@
 ---
 import BaseLayout from "~/layouts/BaseLayout.astro";
-import ReadingProgress from "~/components/ReadingProgress.astro";
 import { formatDate } from "~/lib/formatDate";
 
 export interface Props {
@@ -14,8 +13,6 @@ const { title, description, date, upcoming = false } = Astro.props;
 ---
 
 <BaseLayout title={`${title} — William Zhang`} description={description} bodyClass="note-page">
-  <ReadingProgress />
-
   <a href="/notes/" class="note-back-top link-underline" aria-label="All notes">←</a>
 
   <article class="note">
