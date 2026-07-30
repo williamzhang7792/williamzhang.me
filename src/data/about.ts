@@ -54,9 +54,11 @@ export const about: About = {
     {
       icon: "Code",
       parts: [
-        "Software Developer @ Google Summer of Code (",
-        { label: "gfpop", href: "https://arxiv.org/abs/2002.03646" },
-        ")",
+        "Software Developer @ ",
+        {
+          label: "Google Summer of Code",
+          href: "https://summerofcode.withgoogle.com/",
+        },
       ],
     },
     {
