@@ -126,14 +126,22 @@ a {
    ended up riding the paper top, leaking through the notches. Everyone
    liked the ink, nobody ever saw the progress bar, so the accident is
    now load-bearing and deliberate — on every page, at any length. */
-.paper::before {
+.paper::before,
+.paper::after {
   content: "";
   position: absolute;
-  top: 0;
   left: 0;
   right: 0;
   height: 2px;
   background-color: var(--accent);
+}
+
+.paper::before {
+  top: 0;
+}
+
+.paper::after {
+  bottom: 0;
 }
 
 .paper > * {
