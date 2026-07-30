@@ -1,3 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none" stroke="#C9B998" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-  <polyline points="6,8 11,24 16,13 21,24 26,8" />
+  <!-- Nudged 1.5 down from geometric center: a W is optically top-heavy
+       (full-height stems, narrow bottom points), so box-centering reads high. -->
+  <polyline points="6,9.5 11,25.5 16,14.5 21,25.5 26,9.5" />
 </svg>
