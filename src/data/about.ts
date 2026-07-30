@@ -34,14 +34,14 @@ export const about: About = {
     {
       icon: "corgi",
       parts: [
-        "Quantitative Researcher @ ",
+        "Quantitative Researcher · ",
         { label: "Corgi", href: "https://corgi.insure/" },
       ],
     },
     {
       icon: "uwaterloo",
       parts: [
-        "Math @ ",
+        "Math · ",
         { label: "UWaterloo", href: "https://uwaterloo.ca/" },
       ],
     },
@@ -54,7 +54,7 @@ export const about: About = {
     {
       icon: "Code",
       parts: [
-        "Software Developer @ ",
+        "Software Developer · ",
         {
           label: "Google Summer of Code",
           href: "https://summerofcode.withgoogle.com/",
@@ -74,7 +74,7 @@ export const about: About = {
       parts: [
         "Actuarial Intern · ",
         { label: "Pacific Life Re", href: "https://www.pacificlifere.com/" },
-        " (Summer 2025)",
+        " (May-Aug 2026)",
       ],
     },
     {
