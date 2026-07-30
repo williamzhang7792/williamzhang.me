@@ -57,7 +57,7 @@ export const about: About = {
         "Software Developer · ",
         {
           label: "Google Summer of Code",
-          href: "https://summerofcode.withgoogle.com/",
+          href: "https://opensource.googleblog.com/2026/04/the-journey-begins-meet-the-2026-gsoc-contributors.html",
         },
       ],
     },
