@@ -64,7 +64,7 @@ export const about: About = {
     {
       icon: "Briefcase",
       parts: [
-        "Actuarial Intern · ",
+        "Actuarial Analyst · ",
         { label: "Intact", href: "https://careers.intactfc.com/" },
         " (Jan-Apr 2026)",
       ],
@@ -72,7 +72,7 @@ export const about: About = {
     {
       icon: "Briefcase",
       parts: [
-        "Actuarial Intern · ",
+        "Actuarial Analyst · ",
         { label: "Pacific Life Re", href: "https://www.pacificlifere.com/" },
         " (May-Aug 2026)",
       ],
