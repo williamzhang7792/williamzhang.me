@@ -1,13 +1,15 @@
 ---
 /**
- * Signature — hand-drawn "W. Zhang" as five pen strokes (SVG paths, no font):
- * W, period, Z, connected cursive "hang", flourish underline. Stroke widths
- * vary 1.3–3.4 viewBox units for pressure feel; round caps read as wet ink.
+ * Signature — "W. Zhang" as three fast pen gestures (SVG paths, no font):
+ * a swashed W, a flicked period, and "Zhang" written as ONE continuous
+ * stroke — cursive Z diving below the baseline, rising into the h's looped
+ * ascender, a/n degrading into quick bumps, g's descender looping and
+ * sweeping right-to-left into the full underline. That one-gesture flow is
+ * what makes it read as a signature rather than handwriting.
  *
- * Writes itself on the about page: each path has pathLength="100" and draws
- * via stroke-dashoffset in sequence, with short pen-lift beats between
- * strokes (W … dot … Z … hang … flourish). ~2.9s total, 200ms initial delay
- * so the page paints first. Static (fully drawn) on every other page.
+ * Writes itself on the about page via pathLength="100" + stroke-dashoffset,
+ * deliberately paced (~3.9s) like watching the document get signed. Static
+ * (fully drawn) on every other page.
  *
  * Honors prefers-reduced-motion: jumps straight to the finished signature.
  */
@@ -29,31 +31,19 @@
       class="sig-stroke sig-w"
       pathLength="100"
       stroke-width="2.6"
-      d="M 4.5 20 C 6.5 15.8 9 13.8 10.8 15.2 C 14.5 18.5 16 38 18.5 51.5 C 20 44 24.5 30 28.5 22.5 C 31.5 30 33.5 43 36 51.5 C 38.5 42 43 24 47.5 14.5 C 49 12 51.5 13 52.5 17"
+      d="M 3 26 C 5 18 8 13 11 12.5 C 13.5 20 15.5 36 17.5 51 C 19.5 42 24 27 29 19 C 31 27 33 41 35.5 51.5 C 38.5 40 43.5 22 48.5 12 C 50 9.5 53 10.5 54.5 14.5"
     />
     <path
-      class="sig-stroke sig-dot"
+      class="sig-stroke sig-flick"
       pathLength="100"
-      stroke-width="3.4"
-      d="M 60.5 50 L 60.55 50.05"
+      stroke-width="3"
+      d="M 61 48 L 63.3 50.5"
     />
     <path
-      class="sig-stroke sig-z"
+      class="sig-stroke sig-zhang"
       pathLength="100"
-      stroke-width="2.4"
-      d="M 69 16.5 C 76.5 13.8 87.5 13.5 96 15.8 C 86.5 28.5 77 39 70 51 C 79.5 55 95 53.5 105 49.5"
-    />
-    <path
-      class="sig-stroke sig-hang"
-      pathLength="100"
-      stroke-width="2.2"
-      d="M 112 17 C 113.6 28 115.1 40 116.9 51.5 C 117.9 44.5 121.2 34.5 126.6 32 C 131.5 29.8 134.9 32.8 135.2 37.5 C 135.4 42.5 136.3 47.5 137.9 51.3 C 139.8 45.5 143.7 37.8 150.4 34.6 C 145.6 36.4 142.7 40 142.5 43.5 C 142.3 47.5 145.6 50.6 150.1 50.4 C 153.9 50.1 155.5 46.4 155.8 38.6 C 156.3 43.8 157.3 48.6 159.5 51.4 C 162.3 45.5 165.7 38.5 171.2 36 C 175.7 34 179.1 36.8 179.5 41 C 179.8 44.8 180.7 48.4 182.4 51.4 C 184.3 45.5 187.6 38.5 193.1 35.6 C 188.6 34.8 185.0 37.6 184.6 42 C 184.2 46.5 187.4 50 191.9 49.8 C 195.4 49.6 197.6 45.6 198.2 38.5 C 199.3 46 200.7 57.5 199.5 63.5 C 198.4 69 192.9 71 188.6 68.4 C 185.6 66.4 186.2 62.8 189.6 60.8"
-    />
-    <path
-      class="sig-stroke sig-flourish"
-      pathLength="100"
-      stroke-width="1.3"
-      d="M 8 64.5 C 55 69.5 125 67 168 62.5 C 188 60.5 200 61 207 63 C 209 63.6 210 64.2 209.6 65"
+      stroke-width="2.1"
+      d="M 66 17.5 C 69.5 13.5 75.5 11.8 81.5 12.6 C 86.5 13.3 90.5 14.6 93 16 C 86 25.5 78.5 35.5 72 44.5 C 69.5 48.5 69 53.5 71.8 56.5 C 74.6 59.4 78.8 58.2 81 54 C 85.5 45 91.5 29.5 98.5 20.5 C 100 17.2 102.6 15.8 104.1 17.4 C 105.6 19.2 104.8 23.2 103 27.6 C 101.5 33.8 100.9 44 101.2 51.5 C 101.5 45.5 104.2 39.6 108.7 38.2 C 112.4 37 115 39 115.4 42.2 C 115.8 45.6 116.8 49.2 118.6 51.4 C 121 45.8 125 40 130 38.6 C 126.1 39.2 123.1 42 122.9 45.3 C 122.7 48.7 125.7 51.3 129.9 50.5 C 132.9 49.9 134.7 47.2 135.2 43.4 C 135.9 47.3 137 50.3 139 51.4 C 141.5 45.8 145.3 40 150.3 38.8 C 153.9 37.6 156.4 39.7 156.8 42.9 C 157.2 46.1 158 49.3 159.7 51.4 C 162 45.8 165.8 40 171 38.7 C 166.9 39.3 163.7 42 163.5 45.3 C 163.3 48.7 166.3 51.3 170.5 50.6 C 173.7 50 175.7 47 176.4 42.8 C 177.7 50.5 179.1 60.5 177.5 66 C 176.2 70.8 170.7 72 166.9 69 C 164.5 67.1 164.9 63.9 167.9 62 C 161.5 64.6 151.5 65.6 139.5 64.9 C 119.5 63.7 93.5 62.6 69.5 62.8 C 46 63 26 63.9 14.5 65.2 C 11.4 65.6 9.6 66.4 8.9 67.4"
     />
   </svg>
 </div>
@@ -72,20 +62,17 @@
   }
 
   /* Default state everywhere: fully drawn. The write-on only runs on the
-     about page, as if the document is being signed on arrival. Each stroke
-     draws over --dur starting at --delay; gaps between strokes are the pen
-     lifting to travel to the next letter. */
+     about page, deliberately slow — the document is being signed, not
+     stamped. Gaps between strokes are the pen lifting. */
   body.about-page .sig-stroke {
     stroke-dasharray: 100;
     stroke-dashoffset: 100;
     animation: sig-write var(--dur) var(--ease, ease-in-out) var(--delay) forwards;
   }
 
-  .sig-w        { --dur: 0.45s; --delay: 0.2s; }
-  .sig-dot      { --dur: 0.1s;  --delay: 0.75s; }
-  .sig-z        { --dur: 0.32s; --delay: 0.95s; }
-  .sig-hang     { --dur: 0.65s; --delay: 1.35s; }
-  .sig-flourish { --dur: 0.75s; --delay: 2.1s; --ease: cubic-bezier(0.55, 0.05, 0.4, 1); }
+  .sig-w     { --dur: 0.7s;  --delay: 0.25s; }
+  .sig-flick { --dur: 0.1s;  --delay: 1.15s; }
+  .sig-zhang { --dur: 2.4s;  --delay: 1.5s; }
 
   @keyframes sig-write {
     to { stroke-dashoffset: 0; }
