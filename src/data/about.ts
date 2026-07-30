@@ -102,14 +102,14 @@ export const about: About = {
       icon: "Network",
       parts: [
         { label: "AI agent risk", href: "/notes/a-score-is-not-a-rate/" },
-        " — what I'm noticing and hoping for",
+        " · what I'm noticing and hoping for",
       ],
     },
     {
       icon: "GitBranch",
       parts: [
         { label: "The actuarial bifurcation", href: "/notes/actuarial-bifurcation/" },
-        " — what the integrated path means",
+        " · what the integrated path means",
       ],
     },
     {
