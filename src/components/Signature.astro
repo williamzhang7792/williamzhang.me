@@ -1,15 +1,15 @@
 ---
 /**
- * Signature — placeholder "W. Zhang" in Caveat with a left-to-right reveal
- * animation, plus a separate flourish path that draws via stroke-dashoffset.
+ * Signature — hand-drawn "W. Zhang" as five pen strokes (SVG paths, no font):
+ * W, period, Z, connected cursive "hang", flourish underline. Stroke widths
+ * vary 1.3–3.4 viewBox units for pressure feel; round caps read as wet ink.
  *
- * Animates on every page load (no safeStorage gate, per v1.1). Total ~1.8s.
+ * Writes itself on the about page: each path has pathLength="100" and draws
+ * via stroke-dashoffset in sequence, with short pen-lift beats between
+ * strokes (W … dot … Z … hang … flourish). ~2.9s total, 200ms initial delay
+ * so the page paints first. Static (fully drawn) on every other page.
  *
- * REPLACE within 30 days: swap the inner <text> for a hand-traced single-path
- * <path d="..."> of your real signature. The reveal animation will still work;
- * the flourish path gives the satisfying ink-drawn feel even before that.
- *
- * Honors prefers-reduced-motion via the global rule + per-element overrides.
+ * Honors prefers-reduced-motion: jumps straight to the finished signature.
  */
 ---
 
@@ -20,36 +20,40 @@
     xmlns="http://www.w3.org/2000/svg"
     role="img"
     aria-label="William Zhang signature"
+    fill="none"
+    stroke="currentColor"
+    stroke-linecap="round"
+    stroke-linejoin="round"
   >
-    <defs>
-      <clipPath id="sig-reveal-clip">
-        <rect class="sig-reveal-rect" x="0" y="0" width="240" height="80" />
-      </clipPath>
-    </defs>
-
-    <!-- The text gets revealed left-to-right via the clipPath. -->
-    <g clip-path="url(#sig-reveal-clip)">
-      <text
-        class="sig-text"
-        x="2"
-        y="50"
-        font-family="Caveat, cursive"
-        font-size="54"
-        font-weight="600"
-        fill="currentColor"
-        letter-spacing="0.5"
-      >W. Zhang</text>
-    </g>
-
-    <!-- Flourish underline draws via stroke-dashoffset, staggered after the
-         text reveal nearly completes. -->
     <path
-      class="sig-flourish"
-      d="M 4 66 Q 60 72 156 62 T 220 64"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="1.6"
-      stroke-linecap="round"
+      class="sig-stroke sig-w"
+      pathLength="100"
+      stroke-width="2.6"
+      d="M 4.5 20 C 6.5 15.8 9 13.8 10.8 15.2 C 14.5 18.5 16 38 18.5 51.5 C 20 44 24.5 30 28.5 22.5 C 31.5 30 33.5 43 36 51.5 C 38.5 42 43 24 47.5 14.5 C 49 12 51.5 13 52.5 17"
+    />
+    <path
+      class="sig-stroke sig-dot"
+      pathLength="100"
+      stroke-width="3.4"
+      d="M 60.5 50 L 60.55 50.05"
+    />
+    <path
+      class="sig-stroke sig-z"
+      pathLength="100"
+      stroke-width="2.4"
+      d="M 69 16.5 C 76.5 13.8 87.5 13.5 96 15.8 C 86.5 28.5 77 39 70 51 C 79.5 55 95 53.5 105 49.5"
+    />
+    <path
+      class="sig-stroke sig-hang"
+      pathLength="100"
+      stroke-width="2.2"
+      d="M 112 17 C 113.6 28 115.1 40 116.9 51.5 C 117.9 44.5 121.2 34.5 126.6 32 C 131.5 29.8 134.9 32.8 135.2 37.5 C 135.4 42.5 136.3 47.5 137.9 51.3 C 139.8 45.5 143.7 37.8 150.4 34.6 C 145.6 36.4 142.7 40 142.5 43.5 C 142.3 47.5 145.6 50.6 150.1 50.4 C 153.9 50.1 155.5 46.4 155.8 38.6 C 156.3 43.8 157.3 48.6 159.5 51.4 C 162.3 45.5 165.7 38.5 171.2 36 C 175.7 34 179.1 36.8 179.5 41 C 179.8 44.8 180.7 48.4 182.4 51.4 C 184.3 45.5 187.6 38.5 193.1 35.6 C 188.6 34.8 185.0 37.6 184.6 42 C 184.2 46.5 187.4 50 191.9 49.8 C 195.4 49.6 197.6 45.6 198.2 38.5 C 199.3 46 200.7 57.5 199.5 63.5 C 198.4 69 192.9 71 188.6 68.4 C 185.6 66.4 186.2 62.8 189.6 60.8"
+    />
+    <path
+      class="sig-stroke sig-flourish"
+      pathLength="100"
+      stroke-width="1.3"
+      d="M 8 64.5 C 55 69.5 125 67 168 62.5 C 188 60.5 200 61 207 63 C 209 63.6 210 64.2 209.6 65"
     />
   </svg>
 </div>
@@ -67,47 +71,23 @@
     overflow: visible;
   }
 
-  /* Default state: fully revealed + flourish fully drawn. Signature is
-     STATIC on every page that isn't the about page (notes index, individual
-     notes). The animation only runs when body.about-page is set. */
-  .sig-reveal-rect {
-    transform-box: fill-box;
-    transform-origin: left center;
-    transform: scaleX(1);
+  /* Default state everywhere: fully drawn. The write-on only runs on the
+     about page, as if the document is being signed on arrival. Each stroke
+     draws over --dur starting at --delay; gaps between strokes are the pen
+     lifting to travel to the next letter. */
+  body.about-page .sig-stroke {
+    stroke-dasharray: 100;
+    stroke-dashoffset: 100;
+    animation: sig-write var(--dur) var(--ease, ease-in-out) var(--delay) forwards;
   }
 
-  .sig-flourish {
-    stroke-dasharray: 240;
-    stroke-dashoffset: 0;
-  }
+  .sig-w        { --dur: 0.45s; --delay: 0.2s; }
+  .sig-dot      { --dur: 0.1s;  --delay: 0.75s; }
+  .sig-z        { --dur: 0.32s; --delay: 0.95s; }
+  .sig-hang     { --dur: 0.65s; --delay: 1.35s; }
+  .sig-flourish { --dur: 0.75s; --delay: 2.1s; --ease: cubic-bezier(0.55, 0.05, 0.4, 1); }
 
-  /* About page only: flip defaults to "unwritten" and run the animation.
-     Multi-stop keyframes simulate handwritten pacing with intentional
-     dwells at letter boundaries (after W, transitioning Z→h). 200ms
-     initial delay so the page paints first and the signature begins
-     drawing as if the document is now being signed. */
-  body.about-page .sig-reveal-rect {
-    transform: scaleX(0);
-    animation: sig-reveal 2s linear 200ms forwards;
-  }
-
-  body.about-page .sig-flourish {
-    stroke-dashoffset: 240;
-    animation: sig-draw 0.85s cubic-bezier(0.55, 0.05, 0.4, 1) 1.7s forwards;
-  }
-
-  @keyframes sig-reveal {
-    0%   { transform: scaleX(0); }
-    3%   { transform: scaleX(0.04); }   /* pen touches paper, brief settle */
-    22%  { transform: scaleX(0.20); }   /* W finished — wide capital */
-    28%  { transform: scaleX(0.22); }   /* dwell: pen lifts to dot the period */
-    34%  { transform: scaleX(0.31); }   /* period + space crossed */
-    60%  { transform: scaleX(0.52); }   /* Z (capital) drawn */
-    66%  { transform: scaleX(0.55); }   /* slight slowdown into lowercase h */
-    100% { transform: scaleX(1); }      /* "hang" flows continuously */
-  }
-
-  @keyframes sig-draw {
+  @keyframes sig-write {
     to { stroke-dashoffset: 0; }
   }
 
@@ -117,13 +97,9 @@
     }
   }
 
-  /* Reduced motion: skip the about-page animation, jump to final state. */
+  /* Reduced motion: skip the write-on, show the finished signature. */
   @media (prefers-reduced-motion: reduce) {
-    body.about-page .sig-reveal-rect {
-      transform: scaleX(1);
-      animation: none;
-    }
-    body.about-page .sig-flourish {
+    body.about-page .sig-stroke {
       stroke-dashoffset: 0;
       animation: none;
     }

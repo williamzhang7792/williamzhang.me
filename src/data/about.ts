@@ -1,5 +1,3 @@
-// REMINDER: replace /public/signature.svg with your real handwritten signature within 30 days.
-
 /**
  * A bullet's text is an array of parts. Plain strings render as text; objects
  * with { label, href } render as a link with the L→R underline-grow primitive.
