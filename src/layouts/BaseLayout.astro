@@ -57,17 +57,19 @@ const buildDate = import.meta.env.BUILD_DATE ?? "—";
     <meta name="twitter:image" content={ogImageUrl} />
 
     <!--
-      Fonts:
-        Source Serif 4   - body (with optical-size axis 8..60 for crisp small sizes)
-        Cormorant Garamond - h1 (William Zhang) + italic section labels + back link
-        IBM Plex Mono    - timestamps (last touched, note dates)
-        Caveat           - signature + in-game text in the badminton canvas
+      Fonts (pi.website-style pairing):
+        Newsreader - display serif for h1 (William Zhang), section labels,
+                     note titles. Closest Google Fonts match to Signifier
+                     (Klim, commercial), which pi.website licenses.
+        Caveat     - signature + in-game text in the badminton canvas
+      Body text is the same system monospace stack pi.website uses; no
+      webfont needed for it.
     -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,700&family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=IBM+Plex+Mono:wght@400;500&family=Caveat:wght@500;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&family=Caveat:wght@500;600&display=swap"
     />
   </head>
   <body class={bodyClass} data-build-date={buildDate}>

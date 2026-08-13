@@ -67,16 +67,17 @@ the sparing use. Spreading it dilutes the impact.
 
 | Family                   | When                                  |
 | ------------------------ | ------------------------------------- |
-| Cormorant Garamond       | Everything by default. Body, headings, name |
-| IBM Plex Mono            | Timestamps only — the "last touched" line, note dates |
+| System mono stack        | Everything by default: body, nav, dates, footer. pi.website's stack verbatim |
+| Newsreader               | Display only: name heading, section labels, note titles. Closest free match to Signifier, the commercial serif pi.website uses |
 | Caveat                   | Signature, all in-game text in the badminton canvas. Nowhere else |
 
 Typography rules:
 
-- One serif family throughout the long-form text. No sans-serif additions.
+- Mono carries the long-form text, the serif is display-only. No sans-serif
+  additions. This is the pi.website pairing.
 - Section labels are **italic, lowercase, burgundy**. They earn their
   emphasis through italics + color, not through size or weight.
-- Body text is 18px / line-height 1.7. Note body is 18px / 1.75.
+- Body text is 16px / line-height 1.55. Note body is 17px / 1.7.
 - The `lately:` label uses italic burgundy; the rest of the line is muted.
 
 ## 4. Spacing

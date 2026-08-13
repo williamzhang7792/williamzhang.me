@@ -2,8 +2,9 @@
 
 /* ============================================================
    Design tokens — single source of truth.
-   v1.2: split body (Source Serif 4) from display (Cormorant) so each
-   font is used at the size it was designed for.
+   v1.3: pi.website-style type. Body is their exact system mono
+   stack; display serif is Newsreader, the closest Google Fonts
+   match to their (commercial, unlicensable) Signifier.
    ============================================================ */
 :root {
   /* surfaces */
@@ -35,24 +36,25 @@
   --color-accent: #7a0e20;
   --color-border-subtle: #d5d5d3;
 
-  /* Body — designed for body text at small sizes. Uses opsz axis. */
-  --font-serif: "Source Serif 4", "Cormorant Garamond", Georgia, "Times New Roman", serif;
-  /* Display — used for h1 William Zhang + italic section labels + back link. */
-  --font-display: "Cormorant Garamond", Georgia, serif;
+  /* Display — h1 William Zhang + italic section labels + back link.
+     Newsreader's high optical sizes carry Signifier's moderate contrast
+     and wide old-style proportions. */
+  --font-display: "Newsreader", Georgia, "Times New Roman", serif;
 
-  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
-  --font-script: "Caveat", "Cormorant Garamond", cursive;
+  /* Body + timestamps — pi.website's stack verbatim. */
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --font-script: "Caveat", cursive;
 }
 
 /* ============================================================
-   Base typography — v1.2: Source Serif 4 body @ 16px / weight 400.
-   The opsz axis auto-tunes the font for the rendered size; opacity
-   handled by the new edition.
+   Base typography — v1.3: monospace body @ 16px / weight 400,
+   after pi.website. font-optical-sizing stays on for Newsreader
+   display text, which auto-tunes per rendered size.
    ============================================================ */
 html {
   background-color: var(--bg-outer);
   color: var(--text-body);
-  font-family: var(--font-serif);
+  font-family: var(--font-mono);
   font-size: 16px;
   font-weight: 400;
   line-height: 1.55;
@@ -189,8 +191,8 @@ body.notes-index .paper {
 }
 
 /* ============================================================
-   Section labels — italic lowercase burgundy in Cormorant.
-   v1.3: weight 500 → 600 so structural headers land harder than body.
+   Section labels — italic lowercase burgundy in the display serif.
+   Weight 600 so structural headers land harder than body.
    ============================================================ */
 .section-label {
   font-family: var(--font-display);

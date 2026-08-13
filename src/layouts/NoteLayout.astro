@@ -53,7 +53,7 @@ const { title, description, date, upcoming = false } = Astro.props;
     letter-spacing: 0.02em;
   }
 
-  /* Note body — Source Serif 4 (inherited from html), bumped to 17px since
+  /* Note body — mono (inherited from html), bumped to 17px since
      long-form reading benefits from slightly larger text than the dense
      about page. */
   .note-body {
@@ -303,7 +303,7 @@ const { title, description, date, upcoming = false } = Astro.props;
         clusterBkg: "transparent",
         clusterBorder: tok("--border-subtle"),
         edgeLabelBackground: tok("--bg-paper"),
-        fontFamily: "Source Serif 4, Georgia, serif",
+        fontFamily: tok("--font-mono"),
         fontSize: "15px",
       },
     });

@@ -40,6 +40,9 @@ const title = `${about.name}`;
 
   .name {
     font-family: var(--font-display);
+    /* Pin the wordmark to Newsreader's display cut — auto opsz at 28px
+       lands on the sturdier text cut, losing the Signifier-like contrast. */
+    font-variation-settings: "opsz" 72;
     font-weight: 700;
     font-size: 28px;
     color: var(--accent);
