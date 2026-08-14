@@ -247,6 +247,16 @@ const { title, description, date, upcoming = false } = Astro.props;
   .back-link {
     color: var(--text-muted);
   }
+
+  /* The scoped muted base above outranks global .link-underline:hover
+     (same specificity, later in the bundle), which pinned the text grey
+     while the underline still grew. Restate the hover here — mirrors
+     .note-back-top. */
+  .back-link:hover,
+  .back-link:focus-visible {
+    color: var(--accent);
+    outline: none;
+  }
 </style>
 
 <script>
