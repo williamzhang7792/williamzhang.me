@@ -64,7 +64,6 @@ export const about: About = {
       parts: [
         "Actuarial Analyst · ",
         { label: "Intact", href: "https://careers.intactfc.com/" },
-        " (Jan-Apr 2026)",
       ],
     },
     {
@@ -72,13 +71,12 @@ export const about: About = {
       parts: [
         "Actuarial Analyst · ",
         { label: "Pacific Life Re", href: "https://www.pacificlifere.com/" },
-        " (May-Aug 2026)",
       ],
     },
     {
       icon: "Trophy",
       parts: [
-        "Directing ",
+        "Directed ",
         { label: "ASNA", href: "https://anea-asna.ca/home/" },
         "'s case competition (scaled from 37 to 102 teams)",
       ],
